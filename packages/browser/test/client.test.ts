@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import golden from '../../core/test/golden/commerce.json' with { type: 'json' };
 import { KEYS } from '../src/client.js';
 import { createBeats } from '../src/index.js';
-import { makeClient, recordRequests, setVisibility, settle, silence } from './helpers.js';
+import { makeClient, recordRequests, setVisibility, setWebdriver, settle, silence } from './helpers.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
@@ -21,6 +21,7 @@ beforeEach(() => {
 
 afterEach(() => {
   silence();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
@@ -73,6 +74,29 @@ describe('envelope', () => {
     await settle();
     expect(r.events()).toMatchObject([{ event: 'before-init', properties: { early: true } }]);
     expect(r.requests.every((x) => x.body.key === 'bk_test')).toBe(true);
+  });
+
+  it('sends nothing from automated browsers (navigator.webdriver)', async () => {
+    const r = recordRequests();
+    setWebdriver(true);
+    try {
+      makeClient().client.track('bot');
+      await settle();
+    } finally {
+      setWebdriver(false);
+    }
+    expect(r.requests).toEqual([]);
+  });
+
+  it('sends the consent state with each request', async () => {
+    const r = recordRequests();
+    const { client } = makeClient();
+    client.track('a');
+    await settle();
+    client.consent(true);
+    client.track('b');
+    await settle();
+    expect(r.requests.map((x) => x.body.consent)).toEqual([false, true]);
   });
 
   it('warns and does nothing without key or apiHost', () => {
@@ -275,9 +299,22 @@ describe('consent and identified mode', () => {
 });
 
 describe('product analytics', () => {
-  it('sends $set, $group and $feature_used', async () => {
+  it('does not send $set without a distinct id (cookieless mode before identify)', async () => {
     const r = recordRequests();
     const { client } = makeClient();
+    client.setPersonProperties({ plan: 'pro' });
+    client.identify('u-1');
+    client.setPersonProperties({ plan: 'team' });
+    await settle();
+    expect(r.events().map((e) => [e.event, e.distinct_id])).toEqual([
+      ['$identify', 'u-1'],
+      ['$set', 'u-1'],
+    ]);
+  });
+
+  it('sends $set, $group and $feature_used', async () => {
+    const r = recordRequests();
+    const { client } = makeClient({ cookieless: false });
     client.setPersonProperties({ plan: 'pro' }, { first_seen: '2026-01-01' });
     client.group('company', 'acme-gmbh', { name: 'ACME GmbH' });
     client.featureUsed('export', 'csv');
@@ -341,10 +378,25 @@ describe('e-commerce helpers', () => {
     recordRequests();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.spyOn(console, 'log').mockImplementation(() => {});
-    makeClient().client.orderCompleted({ revenue: 10 } as never);
+    makeClient().client.cartViewed({ items: [{ sku: 'a', price: 'x' }] });
     expect(warn).not.toHaveBeenCalled();
-    makeClient({ debug: true }).client.orderCompleted({ revenue: 10 } as never);
-    expect(warn).toHaveBeenCalledWith('[beats]', '$order_completed: order_id is required');
+    makeClient({ debug: true }).client.cartViewed({ items: [{ sku: 'a', price: 'x' }] });
+    expect(warn).toHaveBeenCalledWith('[beats]', '$cart_viewed: items[0].price is not a decimal amount: "x"');
+  });
+
+  it('does not send an event the server would reject, and says why', async () => {
+    const r = recordRequests();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { client } = makeClient();
+    client.orderCompleted({ revenue: 10, currency: 'EUR' } as never);
+    client.productAdded({ items: [{ name: 'no id' }] });
+    client.track('still sent');
+    await settle();
+    expect(r.names()).toEqual(['still sent']);
+    expect(warn.mock.calls).toEqual([
+      ['[beats] not sent:', '$order_completed: order_id is required'],
+      ['[beats] not sent:', '$product_added: items[0] has neither product_id nor sku'],
+    ]);
   });
 });
 
@@ -406,7 +458,7 @@ describe('pageviews and page leave', () => {
     window.dispatchEvent(new Event('pagehide'));
     window.dispatchEvent(new Event('pagehide')); // only once
     const beacons = r.requests.filter((x) => x.beacon);
-    expect(beacons.map((b) => b.body.batch.map((e) => e.event))).toEqual([['$pageview', '$pageleave'], ['$pageleave']]);
+    expect(beacons.map((b) => b.body.events.map((e) => e.event))).toEqual([['$pageview', '$pageleave'], ['$pageleave']]);
     const [first, second] = r.events().filter((e) => e.event === '$pageleave');
     expect(first!.properties).toEqual({ $duration_ms: 4000, $scroll_depth: 75 });
     expect(second!.properties).toEqual({ $duration_ms: 1000, $scroll_depth: 75 });
@@ -431,7 +483,7 @@ describe('pageviews and page leave', () => {
     const { client } = makeClient({ trackPageleave: false, batching: { size: 50, interval: 60_000 } });
     client.pageview();
     setVisibility('hidden');
-    expect(r.requests.filter((x) => x.beacon).flatMap((x) => x.body.batch.map((e) => e.event))).toEqual(['$pageview']);
+    expect(r.requests.filter((x) => x.beacon).flatMap((x) => x.body.events.map((e) => e.event))).toEqual(['$pageview']);
   });
 });
 

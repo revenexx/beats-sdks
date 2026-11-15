@@ -8,7 +8,7 @@ import type { BeatsCore, BeatsOptions } from './types.js';
  */
 export const KEYS = /* @__PURE__ */ {
   /** localStorage: anonymous id (identified mode). */
-  anonymousId: 'beats_aid',
+  anonymousId: 'beats_id',
   /** localStorage: user id from `identify` (identified mode). */
   userId: 'beats_uid',
   /** sessionStorage: `<session id>.<time of last event>` (identified mode). */
@@ -17,7 +17,7 @@ export const KEYS = /* @__PURE__ */ {
   optOut: 'beats_optout',
 } as const;
 
-export const AID = 'beats_aid';
+export const AID = 'beats_id';
 export const UID = 'beats_uid';
 const SID = 'beats_sid';
 
@@ -222,9 +222,9 @@ export function createClient<T extends BeatsCore = BeatsCore>(plugins: Plugin[] 
     o = ctx._o = opts;
     const b = opts.batching;
     const cfg = { size: b === false ? 1 : 10, interval: 1000, ...(b as object) };
-    t = ctx._t = createTransport(opts.apiHost, opts.key, cfg.size, cfg.interval, opts.maxRetries ?? 10);
-    // an opt-out stored by the full client is honoured by every build
-    s._x = st(0, KEYS.optOut) == '1';
+    t = ctx._t = createTransport(opts.apiHost, opts.key, cfg.size, cfg.interval, opts.maxRetries ?? 10, () => s._id);
+    // automated browsers send nothing; an opt-out stored by the full client is honoured by every build
+    s._x = navigator.webdriver || st(0, KEYS.optOut) == '1';
     if (opts.cookieless === false || st(0, AID)) identified();
 
     on('visibilitychange', () => {

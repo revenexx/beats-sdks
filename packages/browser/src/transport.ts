@@ -17,15 +17,23 @@ export interface Transport {
 
 /**
  * The only module that talks to the server: `POST {apiHost}/e` with
- * `{"key", "batch"}` as a `text/plain` body, which needs no CORS preflight
- * and is what `sendBeacon` sends.
+ * `{"key", "consent", "events"}` as a `text/plain` body, which needs no
+ * CORS preflight and is what `sendBeacon` sends. `consent` says whether the
+ * server may use the browser's `distinct_id` and `session_id`.
  *
  * Failed requests (network error, 408, 429, 5xx) are retried with
  * exponential backoff (1 s, 2 s, 4 s, ... at most 30 s, with jitter) up to
  * `maxRetries` times; while the browser is offline the events wait for the
  * `online` event without using up retries. Other answers drop the batch.
  */
-export function createTransport(apiHost: string, key: string, size: number, interval: number, maxRetries: number): Transport {
+export function createTransport(
+  apiHost: string,
+  key: string,
+  size: number,
+  interval: number,
+  maxRetries: number,
+  consent: () => boolean,
+): Transport {
   const url = endpoint(apiHost, BROWSER_PATH);
   const nav = navigator;
   let q: Envelope[] = [];
@@ -42,11 +50,17 @@ export function createTransport(apiHost: string, key: string, size: number, inte
   // then is sent with fetch).
   const take = (): [Envelope[], string] => {
     const batch = q.splice(0, size);
-    return [batch, browserBody(key, batch)];
+    return [batch, browserBody(key, consent(), batch)];
   };
 
   const post = (body: string) =>
-    fetch(url, { method: 'POST', body, keepalive: body.length < MAX_CHARS, credentials: 'omit' }).then(
+    fetch(url, {
+      method: 'POST',
+      body,
+      headers: { 'Content-Type': 'text/plain' },
+      keepalive: body.length < MAX_CHARS,
+      // credentials stay at the default ("same-origin"): cross-origin requests carry no cookies
+    }).then(
       (r) => r.status,
       () => 0,
     );

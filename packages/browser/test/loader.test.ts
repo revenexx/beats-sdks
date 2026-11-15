@@ -70,6 +70,6 @@ describe('script-tag loader', () => {
     const { client } = makeClient({}, false);
     boot(client);
     await settle();
-    expect(r.requests.map((x) => [x.body.key, x.body.batch[0]!.event])).toEqual([['bk_2', 'x']]);
+    expect(r.requests.map((x) => [x.body.key, x.body.events[0]!.event])).toEqual([['bk_2', 'x']]);
   });
 });

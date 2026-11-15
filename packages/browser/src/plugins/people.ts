@@ -4,7 +4,9 @@ import { AID, KEYS, st, UID, type Plugin } from '../client.js';
 /** `identify`, `setPersonProperties`, `group`, `featureUsed`, `getDistinctId` and `reset`. */
 export const people: Plugin = (ctx) => {
   const s = ctx._s;
-  const set = (p?: Properties, once?: Properties) => ctx._send('$set', { $set: p, $set_once: once });
+  // the server needs a distinct id for $set: in cookieless mode only after identify
+  const set = (p?: Properties, once?: Properties) =>
+    (s._uid || s._aid) && ctx._send('$set', { $set: p ?? {}, $set_once: once });
 
   ctx._def('identify', (userId: string, props?: Properties) => {
     if (typeof userId != 'string' || !userId) return;

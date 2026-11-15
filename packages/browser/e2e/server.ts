@@ -7,7 +7,8 @@ export interface Recorded {
   path: string;
   contentType: string;
   key: string;
-  batch: Envelope[];
+  consent: boolean;
+  events: Envelope[];
 }
 
 const dist = new URL('../dist/', import.meta.url);
@@ -41,7 +42,7 @@ export async function startServers() {
     }
     if (req.method === 'POST' && url.pathname === '/e') {
       const parsed = JSON.parse(await body(req));
-      recorded.push({ path: url.pathname, contentType: req.headers['content-type'] ?? '', key: parsed.key, batch: parsed.batch });
+      recorded.push({ path: url.pathname, contentType: req.headers['content-type'] ?? '', key: parsed.key, consent: parsed.consent, events: parsed.events });
       return res.writeHead(202).end();
     }
     if (url.pathname === '/beats.js' || url.pathname === '/beats.full.js') {
@@ -67,7 +68,7 @@ export async function startServers() {
     collectorUrl,
     siteUrl,
     recorded,
-    events: () => recorded.flatMap((r) => r.batch),
+    events: () => recorded.flatMap((r) => r.events),
     /** Registers an HTML page on the site (`*` for every path). */
     page(path: string, html: string) {
       pages.set(path, html);

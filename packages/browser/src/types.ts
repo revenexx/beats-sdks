@@ -3,7 +3,7 @@ import type { CommerceHelper, CommerceInputs, Envelope, Properties } from '@beat
 export type { Envelope, Properties };
 
 export interface BatchingOptions {
-  /** Send when this many events are queued. Default 10. */
+  /** Send when this many events are queued; also the largest request (the server accepts at most 1000). Default 10. */
   size?: number;
   /** Send queued events after this many milliseconds. Default 1000. */
   interval?: number;

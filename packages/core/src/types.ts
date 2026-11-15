@@ -21,6 +21,10 @@ export interface Envelope {
   language?: string;
   properties?: Properties;
   groups?: Record<string, string>;
+  /** Server-side only: the end user's IP address, for geolocation. */
+  ip?: string;
+  /** Server-side only: the end user's user agent. */
+  user_agent?: string;
 }
 
 /** An item of a commerce event (docs/events.md, "Item fields"). */
@@ -166,6 +170,8 @@ export type CommerceHelper = keyof CommerceInputs;
 export interface BuiltEvent {
   event: string;
   properties: Properties;
-  /** Problems found in the input. The event is still sent. */
+  /** Problems found in the input that were corrected or are harmless. The event can be sent. */
   warnings: string[];
+  /** Problems the server rejects the event for (it would reject the whole request). Do not send the event. */
+  errors: string[];
 }

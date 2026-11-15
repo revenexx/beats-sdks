@@ -12,13 +12,14 @@ interface Req {
   method: string;
   path: string;
   headers: Record<string, string | string[] | undefined>;
-  body: { batch: Envelope[] };
+  body: { events: Envelope[] };
 }
 
 let server: Server;
 let host: string;
 const requests: Req[] = [];
-let respond: (req: Req, n: number) => { status: number; headers?: Record<string, string>; delay?: number } = () => ({ status: 202 });
+type Answer = { status: number; headers?: Record<string, string>; delay?: number; body?: string };
+let respond: (req: Req, n: number) => Answer = () => ({ status: 202 });
 
 beforeAll(async () => {
   server = createServer((req, res) => {
@@ -29,7 +30,7 @@ beforeAll(async () => {
       requests.push(r);
       const a = respond(r, requests.length);
       if (a.delay) await new Promise((x) => setTimeout(x, a.delay));
-      res.writeHead(a.status, a.headers).end(a.status >= 400 ? 'error' : '');
+      res.writeHead(a.status, a.headers).end(a.body ?? (a.status >= 400 ? 'error' : ''));
     });
   });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
@@ -46,11 +47,11 @@ beforeEach(() => {
 const client = (o: Partial<ConstructorParameters<typeof Beats>[0]> = {}) =>
   new Beats({ key: 'bk_server', host, flushOnExit: false, retryDelay: 10, onError: vi.fn(), ...o });
 
-const events = () => requests.flatMap((r) => r.body.batch);
+const events = () => requests.flatMap((r) => r.body.events);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 describe('requests', () => {
-  it('posts {batch} as JSON with the key as bearer token to /api/v1/events', async () => {
+  it('posts {events} as JSON with the key as bearer token to /api/v1/events', async () => {
     const b = client();
     const id = b.capture({ distinctId: 'user-1', event: 'signup', properties: { plan: 'pro' } });
     await b.flush();
@@ -61,7 +62,7 @@ describe('requests', () => {
     expect(r.headers.authorization).toBe('Bearer bk_server');
     expect(r.headers['content-type']).toBe('application/json');
     expect(r.body).toEqual({
-      batch: [{ event: 'signup', event_id: id, timestamp: expect.any(String), distinct_id: 'user-1', properties: { plan: 'pro' } }],
+      events: [{ event: 'signup', event_id: id, timestamp: expect.any(String), distinct_id: 'user-1', properties: { plan: 'pro' } }],
     });
     expect(id).toMatch(UUID);
   });
@@ -91,9 +92,25 @@ describe('requests', () => {
 
   it('passes session, url, referrer and groups through', async () => {
     const b = client();
-    b.capture({ distinctId: 'u', event: 'x', sessionId: 's-1', url: 'https://shop.example/p', referrer: 'https://a.example/', groups: { company: 'acme' } });
+    b.capture({
+      distinctId: 'u',
+      event: 'x',
+      sessionId: 's-1',
+      url: 'https://shop.example/p',
+      referrer: 'https://a.example/',
+      groups: { company: 'acme' },
+      ip: '203.0.113.7',
+      userAgent: 'Mozilla/5.0 (X11; Linux x86_64)',
+    });
     await b.flush();
-    expect(events()[0]).toMatchObject({ session_id: 's-1', url: 'https://shop.example/p', referrer: 'https://a.example/', groups: { company: 'acme' } });
+    expect(events()[0]).toMatchObject({
+      session_id: 's-1',
+      url: 'https://shop.example/p',
+      referrer: 'https://a.example/',
+      groups: { company: 'acme' },
+      ip: '203.0.113.7',
+      user_agent: 'Mozilla/5.0 (X11; Linux x86_64)',
+    });
   });
 });
 
@@ -106,7 +123,7 @@ describe('batching', () => {
     expect(b.queued).toBe(2);
     for (let i = 2; i < 7; i++) b.capture({ distinctId: 'u', event: `e${i}` });
     await b.flush();
-    expect(requests.map((r) => r.body.batch.length)).toEqual([3, 3, 1]);
+    expect(requests.map((r) => r.body.events.length)).toEqual([3, 3, 1]);
     expect(events().map((e) => e.event)).toEqual(['e0', 'e1', 'e2', 'e3', 'e4', 'e5', 'e6']);
   });
 
@@ -149,7 +166,7 @@ describe('retries', () => {
     const id = b.capture({ distinctId: 'u', event: 'x' });
     await b.flush();
     expect(requests).toHaveLength(3);
-    expect(requests.map((r) => r.body.batch[0]!.event_id)).toEqual([id, id, id]);
+    expect(requests.map((r) => r.body.events[0]!.event_id)).toEqual([id, id, id]);
   });
 
   it('gives up after maxRetries and reports the events', async () => {
@@ -164,6 +181,35 @@ describe('retries', () => {
     expect(err).toBeInstanceOf(BeatsError);
     expect(err.status).toBe(500);
     expect(batch).toHaveLength(1);
+  });
+
+  it('on 400, reports the events the server names and sends the others again', async () => {
+    respond = (r) =>
+      r.body.events.length === 3
+        ? { status: 400, body: JSON.stringify({ error: 'invalid events', details: [{ index: 1, error: 'url is required' }] }) }
+        : { status: 202 };
+    const onError = vi.fn();
+    const b = client({ onError });
+    for (const n of ['a', 'b', 'c']) b.capture({ distinctId: 'u', event: n });
+    await b.flush();
+    expect(requests.map((r) => r.body.events.map((e) => e.event))).toEqual([['a', 'b', 'c'], ['a', 'c']]);
+    expect(onError).toHaveBeenCalledOnce();
+    expect(onError.mock.calls[0]![1].map((e: Envelope) => e.event)).toEqual(['b']);
+    expect(onError.mock.calls[0]![0].message).toMatch(/url is required/);
+  });
+
+  it('splits batches larger than the server body limit', async () => {
+    const b = client({ flushAt: 100 });
+    for (let i = 0; i < 4; i++) b.capture({ distinctId: 'u', event: `e${i}`, properties: { blob: 'x'.repeat(300_000) } });
+    await b.flush();
+    expect(requests.map((r) => r.body.events.length)).toEqual([1, 1, 1, 1]);
+  });
+
+  it('caps flushAt at 1000 events per request', async () => {
+    const b = client({ flushAt: 5000, flushInterval: 60_000 });
+    for (let i = 0; i < 1001; i++) b.capture({ distinctId: 'u', event: 'e' });
+    await b.flush();
+    expect(requests.map((r) => r.body.events.length)).toEqual([1000, 1]);
   });
 
   it('does not retry other client errors', async () => {
@@ -242,15 +288,16 @@ describe('e-commerce', () => {
       { timestamp: '2026-11-01T09:00:00Z', eventId: '9f0c6c55-1b55-4a55-8e55-0a55e55f5555' },
     );
     b.orderRefunded('customer-7', { order_id: 'o-1', revenue: 99.9, currency: 'EUR' });
-    b.orderCompleted('customer-7', { revenue: 1 } as never);
+    b.orderCompleted('customer-7', { order_id: 'o-2', revenue: 1 });
+    expect(() => b.orderCompleted('customer-7', { revenue: 1 } as never)).toThrow('beats: $order_completed: order_id is required');
     await b.flush();
     expect(events().map((e) => [e.event, e.properties!.order_id, e.properties!.revenue])).toEqual([
       ['$order_completed', 'o-1', '99.90'],
       ['$order_refunded', 'o-1', '99.90'],
-      ['$order_completed', undefined, '1.00'],
+      ['$order_completed', 'o-2', '1.00'],
     ]);
     expect(events()[0]).toMatchObject({ timestamp: '2026-11-01T09:00:00.000Z', event_id: '9f0c6c55-1b55-4a55-8e55-0a55e55f5555' });
-    expect(warnings).toEqual(['$order_completed: amounts without a currency', '$order_completed: order_id is required']);
+    expect(warnings).toEqual(['$order_completed: amounts without a currency']);
   });
 });
 

@@ -22,6 +22,8 @@ beforeEach(async () => {
   servers.clear();
   await context?.close();
   context = await browser.newContext();
+  // Playwright sets navigator.webdriver, for which the client sends nothing; the tests pretend to be a person
+  await context.addInitScript(() => Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false }));
   page = await context.newPage();
 });
 
@@ -75,7 +77,8 @@ describe('minimal build (beats.js)', () => {
     expect(pv!.screen_width).toBeGreaterThan(0);
     expect(pv!.language).toBeTruthy();
     expect(servers.recorded[0]!.key).toBe('bk_e2e');
-    expect(servers.recorded[0]!.contentType).toMatch(/^text\/plain/);
+    expect(servers.recorded[0]!.contentType).toBe('text/plain');
+    expect(servers.recorded[0]!.consent).toBe(false);
     expect(await storage(page)).toEqual({ local: {}, session: {}, cookie: '' });
     expect(await context.cookies()).toEqual([]);
   });
@@ -153,17 +156,18 @@ describe('minimal build (beats.js)', () => {
     await page.evaluate(() => (window as unknown as { beats: (...a: unknown[]) => void }).beats('track', 'after_consent'));
     let events = await waitFor(count('after_consent'));
     const s = await storage(page);
-    expect(Object.keys(s.local)).toEqual(['beats_aid']);
+    expect(Object.keys(s.local)).toEqual(['beats_id']);
     expect(Object.keys(s.session)).toEqual(['beats_sid']);
     const after = events.find((e) => e.event === 'after_consent')!;
-    expect(after.distinct_id).toBe(s.local.beats_aid);
+    expect(servers.recorded.at(-1)!.consent).toBe(true);
+    expect(after.distinct_id).toBe(s.local.beats_id);
     expect(after.session_id).toBe(s.session.beats_sid!.split('.')[0]);
 
     // the next page load keeps the ids
     await page.goto(`${servers.siteUrl}/consent/2`);
     events = await waitFor(count('$pageview', 2));
     const second = events.filter((e) => e.event === '$pageview')[1]!;
-    expect(second.distinct_id).toBe(s.local.beats_aid);
+    expect(second.distinct_id).toBe(s.local.beats_id);
     expect(second.session_id).toBe(after.session_id);
 
     await page.evaluate(() => (window as unknown as { beats: (...a: unknown[]) => void }).beats('consent', false));
@@ -172,6 +176,18 @@ describe('minimal build (beats.js)', () => {
     expect(await storage(page)).toEqual({ local: {}, session: {}, cookie: '' });
     expect(events.find((e) => e.event === 'after_withdrawal')!.distinct_id).toBeUndefined();
     expect(await context.cookies()).toEqual([]);
+  });
+});
+
+describe('automated browsers', () => {
+  it('send nothing when navigator.webdriver is set', async () => {
+    const ctx = await browser.newContext();
+    const p = await ctx.newPage();
+    servers.page('/bot', html());
+    await p.goto(`${servers.siteUrl}/bot`);
+    await p.waitForTimeout(1500);
+    expect(servers.recorded).toEqual([]);
+    await ctx.close();
   });
 });
 

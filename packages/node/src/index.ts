@@ -4,6 +4,7 @@ import {
   COMMERCE_HELPERS,
   endpoint,
   isRetryable,
+  MAX_EVENTS_PER_REQUEST,
   SERVER_PATH,
   serverBody,
   uuid,
@@ -20,7 +21,7 @@ export interface BeatsNodeOptions {
   key: string;
   /** Origin of the beats server, for example `https://beats.example.com`. */
   host: string;
-  /** Send when this many events are queued; also the largest batch. Default 50. */
+  /** Send when this many events are queued; also the largest batch (at most 1000). Default 50. */
   flushAt?: number;
   /** Send queued events after this many milliseconds. Default 5000. */
   flushInterval?: number;
@@ -59,6 +60,10 @@ export interface EventOptions {
   groups?: Record<string, string>;
   url?: string;
   referrer?: string;
+  /** The end user's IP address, for geolocation (not the address of your server). */
+  ip?: string;
+  /** The end user's user agent, for browser, OS and device fields. */
+  userAgent?: string;
 }
 
 export interface CaptureInput extends EventOptions {
@@ -88,6 +93,9 @@ export interface GroupInput extends EventOptions {
 export type NodeCommerceMethods = {
   [K in CommerceHelper]: (distinctId: string, input: CommerceInputs[K], options?: EventOptions) => string;
 };
+
+/** Largest request body sent at once; the server's default limit is 512 KB. */
+const MAX_BODY = 500_000;
 
 /** The server is unreachable or answered with an error. */
 export class BeatsError extends Error {
@@ -149,6 +157,7 @@ export class Beats {
       onError: (err, events) => console.error(`[beats] ${events.length} events not delivered: ${err.message}`),
       ...options,
     };
+    this.o.flushAt = Math.max(1, Math.min(this.o.flushAt, MAX_EVENTS_PER_REQUEST));
     this.url = endpoint(options.host, SERVER_PATH);
     const proc = (globalThis as { process?: { once?: (e: string, f: () => void) => void } }).process;
     if (this.o.flushOnExit && typeof proc?.once === 'function') proc.once('beforeExit', this.exitHook);
@@ -233,6 +242,8 @@ export class Beats {
       referrer: opts.referrer,
       properties: properties ?? {},
       groups: opts.groups,
+      ip: opts.ip,
+      user_agent: opts.userAgent,
     };
     // drop undefined fields, so that the JSON is the same as what is sent
     const clean = JSON.parse(JSON.stringify(e)) as Envelope;
@@ -251,8 +262,14 @@ export class Beats {
   }
 
   private async send(batch: Envelope[]): Promise<void> {
-    const f = this.o.fetch ?? globalThis.fetch;
     const body = serverBody(batch);
+    // a body over the server's limit is split
+    if (body.length > MAX_BODY && batch.length > 1) {
+      const half = batch.length >> 1;
+      await this.send(batch.slice(0, half));
+      return this.send(batch.slice(half));
+    }
+    const f = this.o.fetch ?? globalThis.fetch;
     let lastError: BeatsError | undefined;
     for (let attempt = 0; attempt <= this.o.maxRetries; attempt++) {
       let wait = Math.min(30_000, this.o.retryDelay * 2 ** attempt);
@@ -266,7 +283,8 @@ export class Beats {
         if (this.o.debug) console.log(`[beats] POST ${this.url} ${batch.length} events: ${res.status}`);
         if (res.ok) return;
         const text = await res.text().catch(() => '');
-        lastError = new BeatsError(`HTTP ${res.status}${text ? `: ${text.slice(0, 200)}` : ''}`, res.status);
+        lastError = new BeatsError(`HTTP ${res.status}${text ? `: ${text.slice(0, 500)}` : ''}`, res.status);
+        if (res.status === 400 && batch.length > 1) return this.resendValid(batch, text, lastError);
         if (!isRetryable(res.status)) break;
         wait = Math.min(30_000, retryAfter(res) ?? wait);
       } catch (err) {
@@ -275,6 +293,21 @@ export class Beats {
       if (attempt < this.o.maxRetries) await sleep(wait);
     }
     this.o.onError(lastError!, batch);
+  }
+
+  // The server rejects a whole request when one event is invalid and names
+  // the invalid ones in `details`; the others are sent again without them.
+  private async resendValid(batch: Envelope[], text: string, error: BeatsError): Promise<void> {
+    let bad: Set<number>;
+    try {
+      const details = (JSON.parse(text) as { details?: { index?: unknown }[] }).details ?? [];
+      bad = new Set(details.map((d) => d.index).filter((i): i is number => typeof i === 'number'));
+    } catch {
+      bad = new Set();
+    }
+    if (!bad.size || bad.size >= batch.length) return this.o.onError(error, batch);
+    this.o.onError(error, batch.filter((_, i) => bad.has(i)));
+    return this.send(batch.filter((_, i) => !bad.has(i)));
   }
 }
 
@@ -285,6 +318,8 @@ for (const name of COMMERCE_HELPERS) {
     value(this: Beats, distinctId: string, input: never, options?: EventOptions): string {
       const self = this as unknown as { o: BeatsNodeOptions; enqueue: Beats['capture'] & ((...a: unknown[]) => string) };
       const b = buildCommerce(name, input, { currency: self.o.currency });
+      // the server would reject the event (and the other events of its request)
+      if (b.errors.length) throw new TypeError(`beats: ${b.errors.join('; ')}`);
       for (const w of b.warnings) (self.o.onWarning ?? (self.o.debug ? (m: string) => console.warn(`[beats] ${m}`) : () => {}))(w);
       return self.enqueue(b.event, distinctId, b.properties, options);
     },

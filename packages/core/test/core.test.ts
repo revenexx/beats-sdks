@@ -56,15 +56,30 @@ describe('normalizeItem', () => {
     expect(w).toEqual([]);
   });
 
-  it('warns about missing ids, bad amounts, quantities and currencies', () => {
+  it('reports a missing id as an error and corrects amounts, quantities, currencies and text fields', () => {
     const w: string[] = [];
-    const item = normalizeItem({ price: 'ten', quantity: 2.4, currency: 'euro', position: 1.5, color: 'red' }, 'it', w);
-    expect(item).toEqual({ quantity: 2, color: 'red' });
+    const e: string[] = [];
+    const item = normalizeItem(
+      { price: 'ten', quantity: 2.4, currency: 'euro', position: 1.5, color: 'red', name: 42 as never, brand: { x: 1 } as never },
+      'it',
+      w,
+      e,
+    );
+    expect(item).toEqual({ quantity: 2, color: 'red', name: '42' });
+    expect(e).toEqual(['it has neither product_id nor sku']);
     expect(w).toHaveLength(5);
-    expect(w.join('\n')).toMatch(/neither product_id nor sku/);
+    expect(w.join('\n')).toMatch(/brand must be a string/);
     expect(w.join('\n')).toMatch(/price is not a decimal amount/);
-    expect(w.join('\n')).toMatch(/quantity must be a positive integer/);
+    expect(w.join('\n')).toMatch(/quantity must be a non-negative integer/);
     expect(w.join('\n')).toMatch(/currency is not an ISO 4217 code/);
+    expect(w.join('\n')).toMatch(/position must be an integer/);
+  });
+
+  it('accepts quantity 0 and replaces a negative one', () => {
+    const w: string[] = [];
+    expect(normalizeItem({ sku: 'a', quantity: 0 }, 'x', w).quantity).toBe(0);
+    expect(normalizeItem({ sku: 'a', quantity: -2 }, 'x', w).quantity).toBe(1);
+    expect(w).toHaveLength(1);
   });
 
   it('keeps extra fields and does not modify the input', () => {
@@ -103,6 +118,7 @@ describe('buildCommerce golden payloads (docs/events.md)', () => {
       const built = buildCommerce(c.helper as CommerceHelper, c.input as never, c.defaults);
       expect({ event: built.event, properties: built.properties }).toEqual(c.expected);
       expect(built.warnings).toEqual(c.warnings);
+      expect(built.errors).toEqual([]);
     });
   }
 });
@@ -120,7 +136,17 @@ describe('buildCommerce validation', () => {
 
   it('requires order_id and warns about missing revenue', () => {
     const b = buildCommerce('orderCompleted', { currency: 'EUR' } as never);
-    expect(b.warnings).toEqual(['$order_completed: order_id is required', '$order_completed: revenue is missing']);
+    expect(b.errors).toEqual(['$order_completed: order_id is required']);
+    expect(b.warnings).toEqual(['$order_completed: revenue is missing']);
+  });
+
+  it('rejects negative order revenue, items without ids and too many items', () => {
+    expect(buildCommerce('orderCompleted', { order_id: 'o', revenue: -1, currency: 'EUR' }).errors).toEqual([
+      '$order_completed: revenue must not be negative',
+    ]);
+    expect(buildCommerce('productAdded', { items: [{ name: 'x' }] }).errors).toEqual(['$product_added: items[0] has neither product_id nor sku']);
+    const many = Array.from({ length: 201 }, (_, i) => ({ sku: String(i) }));
+    expect(buildCommerce('wishlistAdded', { items: many }).errors).toEqual(['$wishlist_added: more than 200 items']);
   });
 
   it('turns a negative refund into a positive amount', () => {
@@ -155,8 +181,8 @@ describe('buildCommerce validation', () => {
 describe('protocol', () => {
   it('builds endpoints and bodies', () => {
     expect(endpoint('https://beats.example.com/', '/e')).toBe('https://beats.example.com/e');
-    expect(JSON.parse(browserBody('bk_1', [{ event: 'a' }]))).toEqual({ key: 'bk_1', batch: [{ event: 'a' }] });
-    expect(JSON.parse(serverBody([{ event: 'a' }]))).toEqual({ batch: [{ event: 'a' }] });
+    expect(JSON.parse(browserBody('bk_1', false, [{ event: 'a' }]))).toEqual({ key: 'bk_1', consent: false, events: [{ event: 'a' }] });
+    expect(JSON.parse(serverBody([{ event: 'a' }]))).toEqual({ events: [{ event: 'a' }] });
   });
 
   it('retries network errors, 408, 429 and 5xx only', () => {

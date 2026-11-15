@@ -19,14 +19,21 @@ export function endpoint(apiHost: string, path: string): string {
   return apiHost.replace(/\/+$/, '') + path;
 }
 
-/** Body of a browser request: `{"key": ..., "batch": [...]}`. */
-export function browserBody(key: string, batch: Envelope[]): string {
-  return JSON.stringify({ key, batch });
+/** Most events in one request. */
+export const MAX_EVENTS_PER_REQUEST = 1000;
+
+/**
+ * Body of a browser request: `{"key": ..., "consent": ..., "events": [...]}`.
+ * The server uses the browser's `distinct_id` and `session_id` only with
+ * `"consent": true` (or for projects that are not cookieless).
+ */
+export function browserBody(key: string, consent: boolean, events: Envelope[]): string {
+  return JSON.stringify({ key, consent, events });
 }
 
-/** Body of a server-side request: `{"batch": [...]}`. */
-export function serverBody(batch: Envelope[]): string {
-  return JSON.stringify({ batch });
+/** Body of a server-side request: `{"events": [...]}`. */
+export function serverBody(events: Envelope[]): string {
+  return JSON.stringify({ events });
 }
 
 /** Whether a failed request should be retried: network errors, 408, 429 and 5xx. */

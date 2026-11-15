@@ -10,11 +10,17 @@ import type { BeatsClient, BeatsOptions } from '../src/types.js';
 
 export interface Request {
   url: string;
-  body: { key: string; batch: Envelope[] };
+  body: { key: string; consent: boolean; events: Envelope[] };
   beacon: boolean;
 }
 
 const live: Ctx[] = [];
+
+/** happy-dom reports an automated browser, which the client ignores; the tests pretend to be a person. */
+export function setWebdriver(value: boolean) {
+  Object.defineProperty(navigator, 'webdriver', { value, configurable: true });
+}
+setWebdriver(false);
 
 /** Records requests made with fetch and sendBeacon. */
 export function recordRequests(status: () => number = () => 200) {
@@ -35,8 +41,8 @@ export function recordRequests(status: () => number = () => 200) {
     requests,
     fetch,
     sendBeacon,
-    events: () => requests.flatMap((r) => r.body.batch),
-    names: () => requests.flatMap((r) => r.body.batch.map((e) => e.event)),
+    events: () => requests.flatMap((r) => r.body.events),
+    names: () => requests.flatMap((r) => r.body.events.map((e) => e.event)),
   };
 }
 

@@ -32,6 +32,12 @@ export const COMMERCE_HELPERS = /* @__PURE__ */ Object.keys(COMMERCE) as Commerc
 
 const EVENT_AMOUNTS = ['value', 'revenue', 'tax', 'shipping', 'discount'] as const;
 
+/** Item fields the server requires to be strings. */
+const ITEM_TEXT = ['product_id', 'sku', 'name', 'brand', 'variant', 'category', 'coupon', 'list_id', 'list_name'] as const;
+
+/** Most items per event. */
+export const MAX_ITEMS = 200;
+
 export interface CommerceDefaults {
   /** Currency for commerce events that name none (ISO 4217). */
   currency?: string;
@@ -67,22 +73,29 @@ function currency(v: unknown, where: string, warnings: string[]): string | undef
   return c;
 }
 
-/** Normalizes one item: ids as strings, amounts as two-decimal strings, quantity 1 by default. */
-export function normalizeItem(input: Item, where: string, warnings: string[]): NormalizedItem {
+/**
+ * Normalizes one item: ids and names as strings, amounts as two-decimal
+ * strings, quantity 1 by default. An item without `product_id` and `sku`
+ * is reported in `errors`.
+ */
+export function normalizeItem(input: Item, where: string, warnings: string[], errors: string[] = warnings): NormalizedItem {
   const item: Record<string, unknown> = { ...input };
-  for (const k of ['product_id', 'sku'] as const) {
+  for (const k of ITEM_TEXT) {
     if (item[k] === undefined || item[k] === null || item[k] === '') delete item[k];
-    else item[k] = str(item[k]);
+    else if (str(item[k]) === undefined) {
+      warnings.push(`${where}.${k} must be a string`);
+      delete item[k];
+    } else item[k] = str(item[k]);
   }
-  if (item.product_id === undefined && item.sku === undefined) warnings.push(`${where} has neither product_id nor sku`);
+  if (item.product_id === undefined && item.sku === undefined) errors.push(`${where} has neither product_id nor sku`);
   amount(item, 'price', where, warnings);
   amount(item, 'discount', where, warnings);
   const q = item.quantity;
   if (q === undefined || q === null) item.quantity = 1;
-  else if (typeof q !== 'number' || !Number.isInteger(q) || q < 1) {
-    warnings.push(`${where}.quantity must be a positive integer: ${JSON.stringify(q)}`);
+  else if (typeof q !== 'number' || !Number.isInteger(q) || q < 0) {
+    warnings.push(`${where}.quantity must be a non-negative integer: ${JSON.stringify(q)}`);
     const n = Math.round(Number(q));
-    item.quantity = Number.isFinite(n) && n > 0 ? n : 1;
+    item.quantity = Number.isFinite(n) && n >= 0 ? n : 1;
   }
   if (item.position !== undefined && !Number.isInteger(item.position)) {
     warnings.push(`${where}.position must be an integer`);
@@ -119,6 +132,7 @@ export function buildCommerce<K extends CommerceHelper>(
   if (!spec) throw new TypeError(`unknown e-commerce helper: ${String(helper)}`);
   const [event, flags] = spec;
   const warnings: string[] = [];
+  const errors: string[] = [];
   const props: Properties = { ...(input as Properties) };
 
   if (flags & ITEMS) {
@@ -133,7 +147,8 @@ export function buildCommerce<K extends CommerceHelper>(
       delete props.items;
     } else {
       if (flags & ONE && props.items.length !== 1) warnings.push(`${event}: expects exactly one item`);
-      props.items = (props.items as Item[]).map((it, i) => normalizeItem(it ?? {}, `${event}: items[${i}]`, warnings));
+      if (props.items.length > MAX_ITEMS) errors.push(`${event}: more than ${MAX_ITEMS} items`);
+      props.items = (props.items as Item[]).map((it, i) => normalizeItem(it ?? {}, `${event}: items[${i}]`, warnings, errors));
     }
   }
 
@@ -155,16 +170,18 @@ export function buildCommerce<K extends CommerceHelper>(
 
   if (flags & ORDER) {
     const id = str(props.order_id);
-    if (!id) warnings.push(`${event}: order_id is required`);
+    if (!id) errors.push(`${event}: order_id is required`);
     else props.order_id = id;
     if (props.revenue === undefined) warnings.push(`${event}: revenue is missing`);
   }
-  if (flags & REFUND && typeof props.revenue === 'string' && props.revenue.startsWith('-')) {
-    warnings.push(`${event}: revenue is the refunded amount and must be positive`);
-    props.revenue = props.revenue.slice(1);
+  if (typeof props.revenue === 'string' && props.revenue.startsWith('-')) {
+    if (flags & REFUND) {
+      warnings.push(`${event}: revenue is the refunded amount and must be positive`);
+      props.revenue = props.revenue.slice(1);
+    } else errors.push(`${event}: revenue must not be negative`);
   }
   if (helper === 'search' && typeof props.query !== 'string') warnings.push(`${event}: query is missing`);
   if (helper === 'checkoutStep' && !Number.isInteger(props.step)) warnings.push(`${event}: step must be an integer`);
 
-  return { event, properties: props, warnings };
+  return { event, properties: props, warnings, errors };
 }
