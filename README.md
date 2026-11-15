@@ -159,9 +159,12 @@ The wire format (endpoints, bodies, limits) is in
 
 ## Releases
 
-All packages share one version. A tag `v<version>` publishes them to npm
-with provenance; see [docs/releasing.md](docs/releasing.md) and the
-[changelog](CHANGELOG.md).
+All packages share one version and are released with
+[Changesets](https://github.com/changesets/changesets): add a changeset with
+`pnpm changeset` to a pull request; merging the "Version Packages" pull
+request that the release workflow opens publishes the packages to npm with
+provenance, through npm trusted publishing. See
+[docs/releasing.md](docs/releasing.md) and the [changelog](CHANGELOG.md).
 
 ## Contributing and security
 
