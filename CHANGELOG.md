@@ -8,6 +8,8 @@ changelog says when and how to migrate.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-15
+
 The first version, published as `@revenexx/beats-*`. The clients were
 developed in the beats repository under the provisional, never published
 scope `@beats-analytics`; this repository continues their history.
@@ -31,4 +33,5 @@ scope `@beats-analytics`; this repository continues their history.
 - `@revenexx/beats-core`: event and item types, normalization, validation
   and the wire format shared by the clients.
 
-[Unreleased]: https://github.com/revenexx/beats-sdks/commits/main
+[Unreleased]: https://github.com/revenexx/beats-sdks/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/revenexx/beats-sdks/releases/tag/v0.1.0
