@@ -1,0 +1,216 @@
+[
+  {
+    "helper": "productListViewed",
+    "input": {
+      "list_id": "drills",
+      "list_name": "Drills",
+      "items": [
+        { "product_id": "p-100", "name": "Cordless Drill", "category": "Tools/Drills/Cordless", "price": 129.9, "position": 1 },
+        { "product_id": 200, "name": "Hammer Drill", "price": "89", "position": 2 }
+      ]
+    },
+    "defaults": { "currency": "EUR" },
+    "expected": {
+      "event": "$product_list_viewed",
+      "properties": {
+        "list_id": "drills",
+        "list_name": "Drills",
+        "currency": "EUR",
+        "items": [
+          { "product_id": "p-100", "name": "Cordless Drill", "category": "Tools/Drills/Cordless", "price": "129.90", "quantity": 1, "position": 1 },
+          { "product_id": "200", "name": "Hammer Drill", "price": "89.00", "quantity": 1, "position": 2 }
+        ]
+      }
+    },
+    "warnings": []
+  },
+  {
+    "helper": "productClicked",
+    "input": { "list_id": "drills", "item": { "product_id": "p-100", "price": 129.9, "position": 1 } },
+    "defaults": { "currency": "EUR" },
+    "expected": {
+      "event": "$product_clicked",
+      "properties": {
+        "list_id": "drills",
+        "currency": "EUR",
+        "items": [{ "product_id": "p-100", "price": "129.90", "quantity": 1, "position": 1 }]
+      }
+    },
+    "warnings": []
+  },
+  {
+    "helper": "productViewed",
+    "input": { "item": { "product_id": "p-100", "sku": "p-100-blue", "variant": "blue", "price": "129.90", "currency": "eur" } },
+    "expected": {
+      "event": "$product_viewed",
+      "properties": {
+        "currency": "EUR",
+        "items": [{ "product_id": "p-100", "sku": "p-100-blue", "variant": "blue", "price": "129.90", "quantity": 1, "currency": "EUR" }]
+      }
+    },
+    "warnings": []
+  },
+  {
+    "helper": "search",
+    "input": { "query": "cordless drill", "results": 12 },
+    "expected": { "event": "$search", "properties": { "query": "cordless drill", "results": 12 } },
+    "warnings": []
+  },
+  {
+    "helper": "productAdded",
+    "input": { "cart_id": "c-1", "currency": "EUR", "items": [{ "product_id": "p-100", "price": 129.9, "quantity": 2 }] },
+    "expected": {
+      "event": "$product_added",
+      "properties": { "cart_id": "c-1", "currency": "EUR", "items": [{ "product_id": "p-100", "price": "129.90", "quantity": 2 }] }
+    },
+    "warnings": []
+  },
+  {
+    "helper": "productRemoved",
+    "input": { "cart_id": "c-1", "items": [{ "sku": "p-100-blue" }] },
+    "expected": {
+      "event": "$product_removed",
+      "properties": { "cart_id": "c-1", "items": [{ "sku": "p-100-blue", "quantity": 1 }] }
+    },
+    "warnings": []
+  },
+  {
+    "helper": "cartViewed",
+    "input": {
+      "cart_id": "c-1",
+      "items": [
+        { "product_id": "p-100", "price": 129.9, "quantity": 2, "discount": 10 },
+        { "product_id": "p-7", "price": "4.99", "quantity": 3 }
+      ]
+    },
+    "defaults": { "currency": "EUR" },
+    "expected": {
+      "event": "$cart_viewed",
+      "properties": {
+        "cart_id": "c-1",
+        "currency": "EUR",
+        "value": "264.77",
+        "items": [
+          { "product_id": "p-100", "price": "129.90", "quantity": 2, "discount": "10.00" },
+          { "product_id": "p-7", "price": "4.99", "quantity": 3 }
+        ]
+      }
+    },
+    "warnings": []
+  },
+  {
+    "helper": "checkoutStarted",
+    "input": { "cart_id": "c-1", "coupon": "SPRING", "value": "254.77", "items": [{ "product_id": "p-100", "price": 129.9, "quantity": 2 }] },
+    "defaults": { "currency": "EUR" },
+    "expected": {
+      "event": "$checkout_started",
+      "properties": {
+        "cart_id": "c-1",
+        "coupon": "SPRING",
+        "value": "254.77",
+        "currency": "EUR",
+        "items": [{ "product_id": "p-100", "price": "129.90", "quantity": 2 }]
+      }
+    },
+    "warnings": []
+  },
+  {
+    "helper": "checkoutStep",
+    "input": { "step": 2, "step_name": "shipping", "option": "express" },
+    "expected": { "event": "$checkout_step", "properties": { "step": 2, "step_name": "shipping", "option": "express" } },
+    "warnings": []
+  },
+  {
+    "helper": "orderCompleted",
+    "input": {
+      "order_id": "o-1001",
+      "revenue": 279.67,
+      "tax": "44.65",
+      "shipping": 4.9,
+      "discount": 10,
+      "coupon": "SPRING",
+      "currency": "EUR",
+      "items": [
+        { "product_id": "p-100", "sku": "p-100-blue", "price": 129.9, "quantity": 2, "discount": 10 },
+        { "product_id": "p-7", "price": 4.99, "quantity": 3 }
+      ]
+    },
+    "expected": {
+      "event": "$order_completed",
+      "properties": {
+        "order_id": "o-1001",
+        "revenue": "279.67",
+        "tax": "44.65",
+        "shipping": "4.90",
+        "discount": "10.00",
+        "coupon": "SPRING",
+        "currency": "EUR",
+        "items": [
+          { "product_id": "p-100", "sku": "p-100-blue", "price": "129.90", "quantity": 2, "discount": "10.00" },
+          { "product_id": "p-7", "price": "4.99", "quantity": 3 }
+        ]
+      }
+    },
+    "warnings": []
+  },
+  {
+    "helper": "orderRefunded",
+    "input": { "order_id": "o-1001", "revenue": 14.97, "currency": "EUR", "items": [{ "product_id": "p-7", "price": 4.99, "quantity": 3 }] },
+    "expected": {
+      "event": "$order_refunded",
+      "properties": {
+        "order_id": "o-1001",
+        "revenue": "14.97",
+        "currency": "EUR",
+        "items": [{ "product_id": "p-7", "price": "4.99", "quantity": 3 }]
+      }
+    },
+    "warnings": []
+  },
+  {
+    "helper": "orderRefunded",
+    "input": { "order_id": "o-1002", "revenue": 100, "currency": "EUR" },
+    "expected": { "event": "$order_refunded", "properties": { "order_id": "o-1002", "revenue": "100.00", "currency": "EUR" } },
+    "warnings": []
+  },
+  {
+    "helper": "promotionViewed",
+    "input": { "promotion_id": "spring-sale", "promotion_name": "Spring sale", "creative": "banner-a", "slot": "home-top" },
+    "expected": {
+      "event": "$promotion_viewed",
+      "properties": { "promotion_id": "spring-sale", "promotion_name": "Spring sale", "creative": "banner-a", "slot": "home-top" }
+    },
+    "warnings": []
+  },
+  {
+    "helper": "promotionClicked",
+    "input": { "promotion_id": "spring-sale", "slot": "home-top" },
+    "expected": { "event": "$promotion_clicked", "properties": { "promotion_id": "spring-sale", "slot": "home-top" } },
+    "warnings": []
+  },
+  {
+    "helper": "wishlistAdded",
+    "input": { "items": [{ "product_id": "p-100", "price": 129.9 }] },
+    "defaults": { "currency": "CHF" },
+    "expected": {
+      "event": "$wishlist_added",
+      "properties": { "currency": "CHF", "items": [{ "product_id": "p-100", "price": "129.90", "quantity": 1 }] }
+    },
+    "warnings": []
+  },
+  {
+    "helper": "quoteRequested",
+    "input": { "quote_id": "q-77", "items": [{ "product_id": "p-100", "price": "119.50", "quantity": 40 }] },
+    "defaults": { "currency": "EUR" },
+    "expected": {
+      "event": "$quote_requested",
+      "properties": {
+        "quote_id": "q-77",
+        "currency": "EUR",
+        "value": "4780.00",
+        "items": [{ "product_id": "p-100", "price": "119.50", "quantity": 40 }]
+      }
+    },
+    "warnings": []
+  }
+]
