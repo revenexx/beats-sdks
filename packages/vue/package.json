@@ -1,0 +1,36 @@
+{
+  "name": "@beats-analytics/vue",
+  "version": "0.1.0",
+  "description": "Vue 3 plugin and composable for the beats browser client.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@beats-analytics/browser": "workspace:*"
+  },
+  "peerDependencies": {
+    "vue": "^3.3.0",
+    "vue-router": ">=4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vue-router": { "optional": true }
+  },
+  "devDependencies": {
+    "vue": "3.5.45",
+    "vue-router": "4.6.5"
+  }
+}
