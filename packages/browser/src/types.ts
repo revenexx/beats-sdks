@@ -1,4 +1,4 @@
-import type { CommerceHelper, CommerceInputs, Envelope, Properties } from '@beats-analytics/core';
+import type { CommerceHelper, CommerceInputs, Envelope, Properties } from '@revenexx/beats-core';
 
 export type { Envelope, Properties };
 

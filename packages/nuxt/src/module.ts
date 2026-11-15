@@ -1,5 +1,5 @@
 import { addImports, addPlugin, createResolver, defineNuxtModule } from '@nuxt/kit';
-import type { BeatsOptions } from '@beats-analytics/browser';
+import type { BeatsOptions } from '@revenexx/beats-browser';
 import type { NuxtModule } from '@nuxt/schema';
 
 export interface ModuleOptions extends Partial<BeatsOptions> {
@@ -14,7 +14,7 @@ export interface ModuleOptions extends Partial<BeatsOptions> {
  */
 const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
   meta: {
-    name: '@beats-analytics/nuxt',
+    name: '@revenexx/beats-nuxt',
     configKey: 'beats',
     compatibility: { nuxt: '>=3.0.0' },
   },

@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { beats } from '@beats-analytics/browser';
+import { beats } from '@revenexx/beats-browser';
 import { h } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';

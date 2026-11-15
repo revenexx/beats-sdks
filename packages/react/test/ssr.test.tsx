@@ -1,5 +1,5 @@
 // Server-side rendering: no window, nothing is initialized or sent.
-import { createBeats } from '@beats-analytics/browser';
+import { createBeats } from '@revenexx/beats-browser';
 import { renderToString } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { BeatsProvider, useBeats } from '../src/index.js';

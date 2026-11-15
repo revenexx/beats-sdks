@@ -7,7 +7,7 @@ import { vitals } from './plugins/vitals.js';
 import type { BeatsClient } from './types.js';
 
 export type * from './types.js';
-export type { CommerceHelper, CommerceInputs, Item, Amount } from '@beats-analytics/core';
+export type { CommerceHelper, CommerceInputs, Item, Amount } from '@revenexx/beats-core';
 export { KEYS } from './client.js';
 
 /** Creates a full browser client. Call `init` on it before or after the first events. */

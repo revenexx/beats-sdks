@@ -33,6 +33,6 @@ export default defineConfig([
     dts: false,
     target: 'es2020',
     bundle: false,
-    external: ['#app', '@beats-analytics/browser', '@beats-analytics/vue'],
+    external: ['#app', '@revenexx/beats-browser', '@revenexx/beats-vue'],
   },
 ]);

@@ -1,0 +1,26 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: beats-sdks
+  title: beats JavaScript SDKs
+  description: >
+    The JavaScript clients of beats — browser, Node.js, Vue, Nuxt and React —
+    published on npm as @revenexx/beats-* (public, MIT).
+  annotations:
+    github.com/project-slug: revenexx/beats-sdks
+    backstage.io/techdocs-ref: dir:.
+  tags:
+    - analytics
+    - sdk
+    - javascript
+    - typescript
+  links:
+    - url: https://www.npmjs.com/package/@revenexx/beats-browser
+      title: npm
+spec:
+  type: library
+  lifecycle: experimental
+  owner: group:default/platform-engineering
+  system: revenue-cloud
+  dependsOn:
+    - component:default/beats

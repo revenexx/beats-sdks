@@ -1,0 +1,33 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.6.8/schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": { "includes": ["**", "!**/dist", "!pnpm-lock.yaml"] },
+  "formatter": { "enabled": false },
+  "assist": { "enabled": false },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "suspicious": {
+        "noDoubleEquals": "off",
+        "noAssignInExpressions": "off",
+        "noConfusingVoidType": "off",
+        "noUnsafeDeclarationMerging": "off"
+      },
+      "complexity": { "noCommaOperator": "off", "noArguments": "off" },
+      "style": { "noNonNullAssertion": "off", "useTemplate": "off" }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["**/test/**", "**/e2e/**"],
+      "linter": {
+        "rules": {
+          "suspicious": { "noExplicitAny": "off", "noDocumentCookie": "off", "useIterableCallbackReturn": "off" },
+          "correctness": { "noComponentHookFactories": "off" },
+          "a11y": { "useButtonType": "off" }
+        }
+      }
+    }
+  ]
+}

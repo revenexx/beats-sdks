@@ -1,8 +1,8 @@
-import { beats as shared, type BeatsClient, type BeatsOptions } from '@beats-analytics/browser';
+import { beats as shared, type BeatsClient, type BeatsOptions } from '@revenexx/beats-browser';
 import { hasInjectionContext, inject, nextTick, type App, type InjectionKey, type Plugin } from 'vue';
 import type { Router } from 'vue-router';
 
-export type * from '@beats-analytics/browser';
+export type * from '@revenexx/beats-browser';
 
 /** Injection key of the client. */
 export const BEATS_KEY: InjectionKey<BeatsClient> = Symbol('beats');
@@ -10,7 +10,7 @@ export const BEATS_KEY: InjectionKey<BeatsClient> = Symbol('beats');
 export interface BeatsVueOptions extends BeatsOptions {
   /** With a router, page views are sent from `router.afterEach` instead of the history API. */
   router?: Router;
-  /** The client to use. Default: the shared `beats` instance of `@beats-analytics/browser`. */
+  /** The client to use. Default: the shared `beats` instance of `@revenexx/beats-browser`. */
   client?: BeatsClient;
 }
 

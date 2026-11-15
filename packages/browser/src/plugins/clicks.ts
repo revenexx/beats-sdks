@@ -1,4 +1,4 @@
-import type { Properties } from '@beats-analytics/core';
+import type { Properties } from '@revenexx/beats-core';
 import type { Plugin } from '../client.js';
 
 /** File extensions counted as downloads when `trackDownloads` is `true`. */

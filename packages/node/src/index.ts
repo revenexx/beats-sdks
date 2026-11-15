@@ -12,9 +12,9 @@ import {
   type CommerceInputs,
   type Envelope,
   type Properties,
-} from '@beats-analytics/core';
+} from '@revenexx/beats-core';
 
-export type { Amount, CommerceHelper, CommerceInputs, Envelope, Item, Properties } from '@beats-analytics/core';
+export type { Amount, CommerceHelper, CommerceInputs, Envelope, Item, Properties } from '@revenexx/beats-core';
 
 export interface BeatsNodeOptions {
   /** Ingest key of the project (`bk_...`), sent as `Authorization: Bearer <key>`. */

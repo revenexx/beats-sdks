@@ -1,0 +1,11 @@
+site_name: beats JavaScript SDKs
+site_description: The browser, Node.js, Vue, Nuxt and React clients of beats (@revenexx/beats-*)
+repo_url: https://github.com/revenexx/beats-sdks
+
+nav:
+  - Home: index.md
+  - Usage guide: usage.md
+  - Releasing: releasing.md
+
+plugins:
+  - techdocs-core

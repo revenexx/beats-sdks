@@ -1,0 +1,105 @@
+name: Release
+
+# Publishes every package in packages/ to npm (scope @revenexx, public) when a
+# tag v<version> is pushed, then creates the GitHub release from CHANGELOG.md.
+# All packages share the version of the tag; the job stops if one differs.
+#
+# Authentication, in this order (docs/releasing.md):
+#   1. npm trusted publishing (OIDC): no stored token. npmjs must list a
+#      trusted publisher for each package (repository revenexx/beats-sdks,
+#      workflow release.yml, environment npm). Needs id-token: write, npm CLI
+#      >= 11.5.1 and Node.js >= 22.14.0, hence the npm pinned below.
+#   2. The NPM_TOKEN secret, only while 1. is impossible: a trusted publisher
+#      can only be added to a package that already exists on npm, so the very
+#      first publish of a new package name needs a token. Remove the secret
+#      once every package has its trusted publisher.
+#
+# Provenance is on (publishConfig.provenance): this repository is public, so
+# npm records which commit and workflow built each version. (revenexx/app-sdks
+# skips it only because npm refuses provenance for private repositories.)
+#
+# Re-running the workflow for the same tag is safe: scripts/publish.mjs
+# skips the packages whose version is already on npm.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  npm:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: npm install -g npm@11.21.2
+      - name: The package versions match the tag
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          for p in packages/*/package.json; do
+            v=$(node -p "require('./$p').version")
+            test "$v" = "$version" || { echo "::error::$p has version $v, the tag is $version"; exit 1; }
+          done
+      - run: pnpm install --frozen-lockfile
+      - name: Chromium for the browser tests
+        run: pnpm exec playwright install --with-deps chromium
+      # The same gate as CI: nothing is published from a red tree.
+      - run: pnpm run check
+      - name: Token fallback for the first publish
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -n "$NPM_TOKEN" ]; then
+            echo "//registry.npmjs.org/:_authToken=\${NPM_TOKEN}" > "$HOME/.npmrc"
+            echo "::notice::publishing with the NPM_TOKEN secret; switch to trusted publishing and remove it (docs/releasing.md)"
+          else
+            echo "publishing with npm trusted publishing (OIDC)"
+          fi
+      - name: Publish
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+        run: node scripts/publish.mjs
+      - name: The packages are on npm
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          for p in packages/*/package.json; do
+            name=$(node -p "require('./$p').name")
+            for _ in 1 2 3 4 5 6; do
+              npm view "$name@$version" version >/dev/null 2>&1 && continue 2
+              sleep 10
+            done
+            echo "::error::$name@$version is not on npm"; exit 1
+          done
+
+  github-release:
+    name: GitHub release
+    needs: npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Release notes from the changelog
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '$0 ~ "^## \\[" v "\\]" {p=1; next} /^## \[/ {p=0} p' CHANGELOG.md > notes.md
+          test -s notes.md || { echo "::error::CHANGELOG.md has no section for $version"; exit 1; }
+      - uses: softprops/action-gh-release@v2
+        with:
+          body_path: notes.md
+          prerelease: ${{ startsWith(github.ref_name, 'v0.') }}

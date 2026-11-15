@@ -1,4 +1,4 @@
-import { uuid, type Properties } from '@beats-analytics/core';
+import { uuid, type Properties } from '@revenexx/beats-core';
 import { AID, KEYS, st, UID, type Plugin } from '../client.js';
 
 /** `identify`, `setPersonProperties`, `group`, `featureUsed`, `getDistinctId` and `reset`. */

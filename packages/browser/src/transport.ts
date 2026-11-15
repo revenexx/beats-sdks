@@ -1,4 +1,4 @@
-import { BROWSER_PATH, browserBody, endpoint, isRetryable, MAX_BODY_BYTES, type Envelope } from '@beats-analytics/core';
+import { BROWSER_PATH, browserBody, endpoint, isRetryable, MAX_BODY_BYTES, type Envelope } from '@revenexx/beats-core';
 
 /** Events kept in memory while the server cannot be reached; the oldest are dropped first. */
 export const MAX_BUFFER = 1000;

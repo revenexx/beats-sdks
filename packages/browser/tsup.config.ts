@@ -26,7 +26,7 @@ const iife = (entry: string, name: string): Options => ({
     await writeFile(file, (await readFile(file, 'utf8')).replace(/^"use strict";/, ''));
   },
   esbuildOptions(o) {
-    o.alias = { '@beats-analytics/core': '../core/src/index.ts' };
+    o.alias = { '@revenexx/beats-core': '../core/src/index.ts' };
   },
 });
 

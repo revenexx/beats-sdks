@@ -1,4 +1,4 @@
-import { beats, type BeatsClient } from '@beats-analytics/browser';
+import { beats, type BeatsClient } from '@revenexx/beats-browser';
 import { useNuxtApp } from '#app';
 
 /**

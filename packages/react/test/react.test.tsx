@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { createBeats } from '@beats-analytics/browser';
+import { createBeats } from '@revenexx/beats-browser';
 import { act, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';

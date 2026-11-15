@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import type { Envelope } from '@beats-analytics/core';
+import type { Envelope } from '@revenexx/beats-core';
 import { createClient, type Ctx, type Plugin } from '../src/client.js';
 import { clicks } from '../src/plugins/clicks.js';
 import { commerce } from '../src/plugins/commerce.js';

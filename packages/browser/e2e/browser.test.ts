@@ -1,6 +1,6 @@
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import type { Envelope } from '@beats-analytics/core';
+import type { Envelope } from '@revenexx/beats-core';
 import { startServers } from './server.js';
 
 let servers: Awaited<ReturnType<typeof startServers>>;
