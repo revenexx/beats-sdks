@@ -1,5 +1,5 @@
-import { beats, type BeatsOptions } from '@beats-analytics/browser';
-import { trackRouter } from '@beats-analytics/vue';
+import { beats, type BeatsOptions } from '@revenexx/beats-browser';
+import { trackRouter } from '@revenexx/beats-vue';
 import { defineNuxtPlugin, useRuntimeConfig, useRouter } from '#app';
 
 export default defineNuxtPlugin((nuxtApp) => {

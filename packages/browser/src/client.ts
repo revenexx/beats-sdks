@@ -1,4 +1,4 @@
-import { uuid, type Envelope, type Properties } from '@beats-analytics/core';
+import { uuid, type Envelope, type Properties } from '@revenexx/beats-core';
 import { createTransport, type Transport } from './transport.js';
 import type { BeatsCore, BeatsOptions } from './types.js';
 

@@ -1,4 +1,4 @@
-import { buildCommerce, COMMERCE_HELPERS, type CommerceHelper } from '@beats-analytics/core';
+import { buildCommerce, COMMERCE_HELPERS, type CommerceHelper } from '@revenexx/beats-core';
 import type { Plugin } from '../client.js';
 
 /**

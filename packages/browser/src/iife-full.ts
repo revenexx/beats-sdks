@@ -1,4 +1,4 @@
-// Full script-tag build: everything in `@beats-analytics/browser`.
+// Full script-tag build: everything in `@revenexx/beats-browser`.
 import { createBeats } from './index.js';
 import { boot } from './loader.js';
 

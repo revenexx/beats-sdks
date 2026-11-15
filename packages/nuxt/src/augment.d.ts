@@ -6,6 +6,6 @@ declare module '#app' {
     'beats:consent': (granted: boolean) => void;
   }
   interface NuxtApp {
-    $beats: import('@beats-analytics/browser').BeatsClient;
+    $beats: import('@revenexx/beats-browser').BeatsClient;
   }
 }

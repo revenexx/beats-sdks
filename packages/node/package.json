@@ -1,8 +1,24 @@
 {
-  "name": "@beats-analytics/node",
+  "name": "@revenexx/beats-node",
   "version": "0.1.0",
   "description": "Server-side client of beats for Node.js, Bun and Deno.",
   "license": "MIT",
+  "homepage": "https://github.com/revenexx/beats-sdks/tree/main/packages/node#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/revenexx/beats-sdks.git",
+    "directory": "packages/node"
+  },
+  "bugs": {
+    "url": "https://github.com/revenexx/beats-sdks/issues"
+  },
+  "keywords": [
+    "beats",
+    "analytics",
+    "ecommerce",
+    "server-side",
+    "node"
+  ],
   "type": "module",
   "sideEffects": false,
   "main": "./dist/index.cjs",
@@ -10,17 +26,31 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     }
   },
-  "files": ["dist"],
-  "engines": { "node": ">=18" },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "build": "tsup",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@beats-analytics/core": "workspace:*"
+    "@revenexx/beats-core": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }

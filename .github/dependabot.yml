@@ -1,0 +1,38 @@
+# From revenexx/.github templates/dependabot.yml; only the
+# ecosystems of this repository are kept. Weekly, one pull request per
+# ecosystem (majors included). A group that turns red is not taken apart by
+# hand: hold the breaking major back with an `ignore` in a pull request of its
+# own, naming the reason and the ticket that lifts it.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    ignore:
+      # The types follow the lowest Node.js the packages support, not ahead of it.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+    groups:
+      npm-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      npm:
+        applies-to: version-updates
+        patterns: ["*"]
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      actions-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      actions:
+        applies-to: version-updates
+        patterns: ["*"]

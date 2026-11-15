@@ -1,5 +1,5 @@
 {
-  "name": "beats-sdk",
+  "name": "beats-sdks",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.28.0",
@@ -9,17 +9,20 @@
   "scripts": {
     "build": "pnpm -r --workspace-concurrency=1 run build",
     "typecheck": "pnpm -r run typecheck",
+    "lint": "biome lint . && node scripts/lint-packages.mjs",
     "test": "vitest run --project unit",
     "test:browser": "pnpm run build && vitest run --project browser",
     "test:all": "pnpm run build && vitest run",
     "size": "node scripts/size.mjs",
-    "copy-asset": "pnpm --filter @beats-analytics/core --filter @beats-analytics/browser run build && node scripts/size.mjs && node scripts/copy-asset.mjs",
-    "check": "pnpm run build && pnpm run typecheck && vitest run && node scripts/size.mjs"
+    "check": "pnpm run build && pnpm run lint && pnpm run typecheck && vitest run && node scripts/size.mjs"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "0.18.5",
+    "@biomejs/biome": "2.6.8",
     "@types/node": "22.20.5",
     "happy-dom": "21.0.4",
     "playwright": "1.63.0",
+    "publint": "0.3.25",
     "terser": "^5.51.2",
     "tsup": "8.5.1",
     "typescript": "5.9.3",

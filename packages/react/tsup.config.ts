@@ -6,7 +6,7 @@ export default defineConfig({
   dts: true,
   clean: true,
   target: 'es2020',
-  external: ['react', '@beats-analytics/browser'],
+  external: ['react', '@revenexx/beats-browser'],
   // the provider can be imported from Next.js server components (app router)
   banner: { js: "'use client';" },
 });

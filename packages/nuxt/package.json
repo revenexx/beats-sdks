@@ -1,31 +1,58 @@
 {
-  "name": "@beats-analytics/nuxt",
+  "name": "@revenexx/beats-nuxt",
   "version": "0.1.0",
   "description": "Nuxt 3 and 4 module for the beats browser client.",
   "license": "MIT",
+  "homepage": "https://github.com/revenexx/beats-sdks/tree/main/packages/nuxt#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/revenexx/beats-sdks.git",
+    "directory": "packages/nuxt"
+  },
+  "bugs": {
+    "url": "https://github.com/revenexx/beats-sdks/issues"
+  },
+  "keywords": [
+    "beats",
+    "analytics",
+    "nuxt",
+    "nuxt-module"
+  ],
   "type": "module",
   "main": "./dist/module.cjs",
   "module": "./dist/module.js",
   "types": "./dist/module.d.ts",
   "exports": {
     ".": {
-      "import": { "types": "./dist/module.d.ts", "default": "./dist/module.js" },
-      "require": { "types": "./dist/module.d.cts", "default": "./dist/module.cjs" }
+      "import": {
+        "types": "./dist/module.d.ts",
+        "default": "./dist/module.js"
+      },
+      "require": {
+        "types": "./dist/module.d.cts",
+        "default": "./dist/module.cjs"
+      }
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@beats-analytics/browser": "workspace:*",
-    "@beats-analytics/vue": "workspace:*",
+    "@revenexx/beats-browser": "workspace:*",
+    "@revenexx/beats-vue": "workspace:*",
     "@nuxt/kit": "^3.15.0 || ^4.0.0",
     "@nuxt/schema": "^4.6.4"
   },
   "devDependencies": {
     "vue": "3.5.45",
     "vue-router": "4.6.5"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }

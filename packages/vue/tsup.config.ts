@@ -6,5 +6,5 @@ export default defineConfig({
   dts: true,
   clean: true,
   target: 'es2020',
-  external: ['vue', 'vue-router', '@beats-analytics/browser'],
+  external: ['vue', 'vue-router', '@revenexx/beats-browser'],
 });

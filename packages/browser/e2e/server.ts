@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import type { Envelope } from '@beats-analytics/core';
+import type { Envelope } from '@revenexx/beats-core';
 
 export interface Recorded {
   path: string;
