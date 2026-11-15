@@ -37,8 +37,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 18 is the lowest Node.js in `engines`; the test tools need 20+, so
-        # on 18 the built packages are loaded and used without them.
+        # 18 is the lowest Node.js in `engines`. The unit tests need 22.6+
+        # (vitest, --experimental-strip-types): they run on 22 in the job
+        # above and on 24 here; on 18 and 20 the built packages are loaded
+        # and used without the test tools.
         node: [18, 20, 24]
     steps:
       - uses: actions/checkout@v7
@@ -52,7 +54,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node }}
-      - if: matrix.node != 18
+      - if: matrix.node == 24
         run: pnpm test
       - name: Load the built packages (ESM and CJS)
         run: node scripts/smoke.mjs
