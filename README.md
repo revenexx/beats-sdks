@@ -14,17 +14,17 @@ format in [docs/events.md](../docs/events.md); the endpoints in
 | `@beats-analytics/nuxt` | `packages/nuxt` |
 | `@beats-analytics/react` | `packages/react` |
 
-The scope `@beats-analytics` is provisional. Nothing is published yet.
+The scope `@beats-analytics` is provisional. Nothing is published yet; the release workflow publishes the packages when the repository has an `NPM_TOKEN` secret.
 
 ## Quick start
 
 ```html
-<script defer src="https://beats.example.com/beats.js" data-key="pk_..."></script>
+<script defer src="https://beats.example.com/beats.js" data-key="bk_..."></script>
 ```
 
 ```js
 import { beats } from '@beats-analytics/browser';
-beats.init({ key: 'pk_...', apiHost: 'https://beats.example.com' });
+beats.init({ key: 'bk_...', apiHost: 'https://beats.example.com' });
 beats.track('signup', { plan: 'pro' });
 ```
 
