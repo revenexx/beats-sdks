@@ -13,7 +13,7 @@
     "test:browser": "pnpm run build && vitest run --project browser",
     "test:all": "pnpm run build && vitest run",
     "size": "node scripts/size.mjs",
-    "copy-asset": "node scripts/copy-asset.mjs",
+    "copy-asset": "pnpm --filter @beats-analytics/core --filter @beats-analytics/browser run build && node scripts/size.mjs && node scripts/copy-asset.mjs",
     "check": "pnpm run build && pnpm run typecheck && vitest run && node scripts/size.mjs"
   },
   "devDependencies": {
