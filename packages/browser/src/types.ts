@@ -10,7 +10,7 @@ export interface BatchingOptions {
 }
 
 export interface BeatsOptions {
-  /** Ingest key of the project (`bk_...`). */
+  /** Ingest key of the project (`pk_...`). */
   key: string;
   /** Origin of the beats server, for example `https://beats.example.com`. */
   apiHost: string;

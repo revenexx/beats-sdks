@@ -17,7 +17,7 @@ import {
 export type { Amount, CommerceHelper, CommerceInputs, Envelope, Item, Properties } from '@beats-analytics/core';
 
 export interface BeatsNodeOptions {
-  /** Ingest key of the project (`bk_...`), sent as `Authorization: Bearer <key>`. */
+  /** Ingest key of the project (`pk_...`), sent as `Authorization: Bearer <key>`. */
   key: string;
   /** Origin of the beats server, for example `https://beats.example.com`. */
   host: string;
