@@ -38,6 +38,12 @@ importers:
 
   packages/core: {}
 
+  packages/node:
+    dependencies:
+      '@beats-analytics/core':
+        specifier: workspace:*
+        version: link:../core
+
 packages:
 
   '@emnapi/core@2.0.0-beta.2':
