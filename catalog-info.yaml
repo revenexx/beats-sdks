@@ -20,7 +20,7 @@ metadata:
 spec:
   type: library
   lifecycle: experimental
-  owner: group:default/platform-engineering
+  owner: group:default/product-engineering
   system: revenue-cloud
   dependsOn:
     - component:default/beats
