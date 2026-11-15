@@ -1,6 +1,6 @@
 {
   "name": "@revenexx/beats-vue",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "description": "Vue 3 plugin and composable for the beats browser client.",
   "license": "MIT",
   "homepage": "https://github.com/revenexx/beats-sdks/tree/main/packages/vue#readme",
@@ -59,6 +59,7 @@
     "vue-router": "4.6.5"
   },
   "publishConfig": {
+    "registry": "https://registry.npmjs.org",
     "access": "public",
     "provenance": true
   }

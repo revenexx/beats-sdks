@@ -34,7 +34,8 @@ the individual commands and the layout of the browser client.
   `packages/core/src/types.ts` are what a beats server accepts. Changing
   them needs a matching server release; say so in the pull request.
 - **Documentation** in `README.md` or `docs/usage.md` for every
-  user-visible change, and an entry in `CHANGELOG.md` under "Unreleased".
+  user-visible change, and a changeset (`pnpm changeset`) that describes it
+  for the changelog; see [docs/releasing.md](docs/releasing.md).
 - **Plain commit messages**: an imperative subject line ("Add …", "Fix …")
   and a body that explains why.
 

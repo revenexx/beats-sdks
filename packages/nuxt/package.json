@@ -1,6 +1,6 @@
 {
   "name": "@revenexx/beats-nuxt",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "description": "Nuxt 3 and 4 module for the beats browser client.",
   "license": "MIT",
   "homepage": "https://github.com/revenexx/beats-sdks/tree/main/packages/nuxt#readme",
@@ -52,6 +52,7 @@
     "vue-router": "4.6.5"
   },
   "publishConfig": {
+    "registry": "https://registry.npmjs.org",
     "access": "public",
     "provenance": true
   }
