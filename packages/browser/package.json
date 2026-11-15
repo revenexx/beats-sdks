@@ -1,6 +1,6 @@
 {
   "name": "@revenexx/beats-browser",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Browser client of beats: web, product and e-commerce analytics.",
   "license": "MIT",
   "homepage": "https://github.com/revenexx/beats-sdks/tree/main/packages/browser#readme",

@@ -1,6 +1,6 @@
 {
   "name": "@revenexx/beats-node",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Server-side client of beats for Node.js, Bun and Deno.",
   "license": "MIT",
   "homepage": "https://github.com/revenexx/beats-sdks/tree/main/packages/node#readme",
