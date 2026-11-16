@@ -65,6 +65,41 @@ describe('Vue plugin', () => {
     app.unmount();
   });
 
+  it('counts the initial load once when the page replaces its URL while it hydrates', async () => {
+    const { c, pageview } = fakeClient();
+    history.replaceState(null, '', '/landing?utm_source=news&ref=a%20b');
+    const Page = defineComponent({ render: () => h('p') });
+    const router = createRouter({
+      history: createWebHistory(),
+      routes: [
+        { path: '/landing', component: Page },
+        { path: '/other', component: Page },
+      ],
+    });
+    const app = createApp({ render: () => h(RouterView) });
+    app.use(router);
+    app.use(createBeatsPlugin({ key: 'k', apiHost: 'https://beats.test', client: c, router }));
+    app.mount(document.createElement('div'));
+    // like Nuxt's router plugin: replace with the resolved initial URL, then the app normalises its query
+    await router.replace({ ...router.resolve(window.location.href.slice(window.location.origin.length)), force: true });
+    await router.replace('/landing?ref=a+b&utm_source=news');
+    await router.isReady();
+    await router.replace('/landing');
+    await router.replace('/landing#top');
+    await settle();
+    expect(pageview).toHaveBeenCalledTimes(1);
+    // genuine navigations still count: a push of a new query, a push or replace of a new path
+    await router.push('/landing?page=2');
+    await settle();
+    await router.replace('/other');
+    await settle();
+    await router.push('/landing');
+    await settle();
+    expect(pageview).toHaveBeenCalledTimes(4);
+    app.unmount();
+    history.replaceState(null, '', '/');
+  });
+
   it('autoPageviews: false with a router sends no page views', async () => {
     const { c, pageview } = fakeClient();
     const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: { render: () => h('p') } }] });
