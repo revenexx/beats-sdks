@@ -14,6 +14,12 @@ export interface TrackRouterOptions {
    * every later event of the page, including its `$pageleave`. Default true.
    */
   routeProperties?: boolean;
+  /**
+   * Resolves when the new page has set its title, after a completed
+   * navigation. Default: Vue's `nextTick`. The Nuxt module waits for
+   * `page:finish` and the head update instead.
+   */
+  ready?: () => Promise<unknown>;
 }
 
 export interface BeatsVueOptions extends BeatsOptions, TrackRouterOptions {
@@ -38,8 +44,8 @@ export function routeProperties(to: Pick<RouteLocationNormalized, 'matched' | 'n
 
 /**
  * Sends `$pageview` after each completed navigation of a Vue Router. Changes
- * of the hash alone are not counted. The page view is sent on the next tick,
- * so that the new page has set its title. With `routeProperties` (default),
+ * of the hash alone are not counted. The page view is sent once `ready`
+ * resolves (default: the next tick), so that the new page has set its title. With `routeProperties` (default),
  * the page view carries `route` and `route_name`, and they are registered as
  * super properties after it, so later events of the page carry them too
  * (the previous page's `$pageleave` keeps the previous route).
@@ -51,7 +57,7 @@ export function trackRouter(router: Router, client: BeatsClient = shared, option
     if (key === last) return;
     last = key;
     const props = options.routeProperties === false ? undefined : routeProperties(to);
-    void nextTick(() => {
+    void (options.ready ?? nextTick)().then(() => {
       client.pageview(props);
       if (props) client.register(props);
     });
@@ -70,7 +76,7 @@ export function trackRouter(router: Router, client: BeatsClient = shared, option
  * rendering), provides it to `useBeats()` and as `$beats`.
  */
 export function createBeatsPlugin(options: BeatsVueOptions): Plugin & { client: BeatsClient } {
-  const { router, client = shared, routeProperties, ...init } = options;
+  const { router, client = shared, routeProperties, ready, ...init } = options;
   return {
     client,
     install(app: App) {
@@ -78,7 +84,7 @@ export function createBeatsPlugin(options: BeatsVueOptions): Plugin & { client: 
       app.config.globalProperties.$beats = client;
       if (typeof window === 'undefined') return;
       client.init({ ...init, autoPageviews: router ? false : init.autoPageviews });
-      if (router && init.autoPageviews !== false) trackRouter(router, client, { routeProperties });
+      if (router && init.autoPageviews !== false) trackRouter(router, client, { routeProperties, ready });
     },
   };
 }

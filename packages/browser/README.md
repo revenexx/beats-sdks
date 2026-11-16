@@ -1,6 +1,6 @@
 # @revenexx/beats-browser
 
-Browser client of beats: web, product and e-commerce analytics. Cookieless by default, 2.2 KB script-tag build.
+Browser client of beats: web, product and e-commerce analytics. Cookieless by default, 2.3 KB script-tag build.
 
 ```sh
 npm install @revenexx/beats-browser

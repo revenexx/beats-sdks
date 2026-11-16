@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 
 const budgets = [
-  // 2048 until the privacy defaults (URL cleaning, beforeSend, sanitizeUrl), which belong in the minimal build too
-  ['packages/browser/dist/beats.js', 'minimal (pageviews, SPA, page leave, track, consent)', 2304],
+  // 2048 until the privacy defaults (URL cleaning, beforeSend, sanitizeUrl) and the page leave title, which belong in the minimal build too
+  ['packages/browser/dist/beats.js', 'minimal (pageviews, SPA, page leave, track, consent)', 2355],
   ['packages/browser/dist/beats.full.js', 'full', 6144],
 ];
 

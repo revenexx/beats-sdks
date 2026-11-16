@@ -3,6 +3,7 @@ import { trackRouter } from '@revenexx/beats-vue';
 import { defineNuxtPlugin, useRouter, useRuntimeConfig, useState } from '#app';
 import fileConfig from '#build/beats.config.mjs';
 import type { BeatsConfig } from './config.js';
+import { pageReady } from './page-ready.js';
 import { KEY_STATE, requestKey } from './request-key.js';
 import { listenToThemeEvents, type PriceBasis } from './theme-events.js';
 
@@ -29,9 +30,9 @@ export default defineNuxtPlugin((nuxtApp) => {
     if (!options.apiHost || requestKeyHeader === false || options.debug)
       console.warn('[beats] set beats.key and beats.apiHost (or NUXT_PUBLIC_BEATS_KEY and NUXT_PUBLIC_BEATS_API_HOST)');
   } else {
-    // page views come from the router, not from the history API
+    // page views come from the router, not from the history API, once the new page's title is applied
     beats.init({ ...(options as BeatsOptions), key, autoPageviews: false });
-    if (options.autoPageviews !== false) trackRouter(useRouter(), beats, { routeProperties });
+    if (options.autoPageviews !== false) trackRouter(useRouter(), beats, { routeProperties, ready: () => pageReady(nuxtApp) });
     if (themeEvents !== false) {
       const basis = typeof themeEvents === 'object' && themeEvents.priceBasis === 'gross' ? 'gross' : 'net';
       listenToThemeEvents(nuxtApp, beats, basis, window);

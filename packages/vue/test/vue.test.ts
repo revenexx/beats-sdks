@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { createBeats } from '@revenexx/beats-browser';
-import { createApp, defineComponent, h, nextTick } from 'vue';
-import { createMemoryHistory, createRouter, createWebHistory } from 'vue-router';
+import { createApp, defineComponent, h, nextTick, onMounted } from 'vue';
+import { createMemoryHistory, createRouter, createWebHistory, RouterView } from 'vue-router';
 import { createSSRApp } from 'vue';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createBeatsPlugin, trackRouter, useBeats } from '../src/index.js';
@@ -139,6 +139,55 @@ describe('Vue plugin', () => {
       ]);
       // the id stays in the URL path (use sanitizeUrl for that); the query string does not
       expect(events[2]!.url).toMatch(/\/customers\/42$/);
+      app.unmount();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('sends the title the new page sets when it mounts, and the old title with the page leave', async () => {
+    Object.defineProperty(navigator, 'webdriver', { value: false, configurable: true });
+    const bodies: { key: string; events: { event: string; title?: string }[] }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init: RequestInit) => {
+        bodies.push(JSON.parse(init.body as string));
+        return new Response(null, { status: 200 });
+      }),
+    );
+    try {
+      const titled = (title: string) =>
+        defineComponent({
+          setup() {
+            // like useHead: the title is set after the page has rendered
+            onMounted(() => (document.title = title));
+            return () => h('p', title);
+          },
+        });
+      history.replaceState(null, '', '/');
+      document.title = 'Before';
+      const router = createRouter({
+        history: createWebHistory(),
+        routes: [
+          { path: '/', component: titled('Home') },
+          { path: '/customers/:id', component: titled('Jane Doe') },
+        ],
+      });
+      const c = createBeats();
+      const app = createApp({ render: () => h(RouterView) });
+      app.use(router);
+      app.use(createBeatsPlugin({ key: 'bk_title', apiHost: 'https://beats.test', client: c, router, batching: false }));
+      app.mount(document.createElement('div'));
+      await router.isReady();
+      await settle();
+      await router.push('/customers/42');
+      await settle();
+      const events = bodies.filter((b) => b.key === 'bk_title').flatMap((b) => b.events);
+      expect(events.map((e) => [e.event, e.title])).toEqual([
+        ['$pageview', 'Home'],
+        ['$pageleave', 'Home'],
+        ['$pageview', 'Jane Doe'],
+      ]);
       app.unmount();
     } finally {
       vi.unstubAllGlobals();
