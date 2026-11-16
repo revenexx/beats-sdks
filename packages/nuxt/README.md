@@ -24,7 +24,7 @@ One deployment can serve several beats projects. When the server-side rendered r
 beats: { apiHost: 'https://beats.revenexx.com' },
 ```
 
-Use the header only behind a proxy that sets it and drops copies sent by clients (the revenexx platform does both). Otherwise a client could send its own key, and a cache in front of the app could serve that page to others. `requestKeyHeader: 'x-other-header'` reads another header; `requestKeyHeader: false` turns it off.
+Use the header only behind a proxy that sets it and drops copies sent by clients (the revenexx platform does both). Otherwise a client could send its own key, and a cache in front of the app could serve that page to others. `requestKeyHeader: 'x-other-header'` reads another header; `requestKeyHeader: false` turns it off. A page that has neither a header nor `beats.key` sends nothing; with the header on, the console warning for that case appears only with `debug: true`.
 
 ## Theme events
 

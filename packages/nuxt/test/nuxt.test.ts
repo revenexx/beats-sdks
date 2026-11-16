@@ -89,6 +89,17 @@ describe('Nuxt runtime plugin', () => {
     expect(warn).toHaveBeenCalled();
   });
 
+  it('stays quiet without a key when only the request key is missing, unless debug', async () => {
+    const init = vi.spyOn(beats, 'init');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await run({ apiHost: 'https://beats.test' });
+    expect(init).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
+    await run({ apiHost: 'https://beats.test', debug: true });
+    await run({ apiHost: 'https://beats.test', requestKeyHeader: false });
+    expect(warn).toHaveBeenCalledTimes(2);
+  });
+
   it('prefers the per-request key from the payload over the configured one', async () => {
     const init = vi.spyOn(beats, 'init').mockImplementation(() => {});
     await run({ key: 'bk_static', apiHost: 'https://beats.test' }, 'bk_tenant');

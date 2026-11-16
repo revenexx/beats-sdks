@@ -16,7 +16,10 @@ export default defineNuxtPlugin((nuxtApp) => {
   const fromRequest = requestKeyHeader === false ? undefined : requestKey(useState<string | undefined>(KEY_STATE).value);
   const key = fromRequest ?? options.key;
   if (!key || !options.apiHost) {
-    console.warn('[beats] set beats.key and beats.apiHost (or NUXT_PUBLIC_BEATS_KEY and NUXT_PUBLIC_BEATS_API_HOST)');
+    // With the request key header on, a page without a key is expected (a host
+    // that belongs to no beats project, such as a preview): only say so in debug.
+    if (!options.apiHost || requestKeyHeader === false || options.debug)
+      console.warn('[beats] set beats.key and beats.apiHost (or NUXT_PUBLIC_BEATS_KEY and NUXT_PUBLIC_BEATS_API_HOST)');
   } else {
     // page views come from the router, not from the history API
     beats.init({ ...(options as BeatsOptions), key, autoPageviews: false });
