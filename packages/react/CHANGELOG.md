@@ -1,5 +1,13 @@
 # @revenexx/beats-react
 
+## 0.2.0
+
+### Patch Changes
+
+- Updated dependencies [0b791da]
+- Updated dependencies [99cf6f6]
+  - @revenexx/beats-browser@0.2.0
+
 ## 0.1.0
 
 ### Minor Changes
