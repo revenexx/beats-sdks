@@ -315,8 +315,22 @@ await nuxtApp.callHook('beats:consent', true);
 
 `exposeGlobal: true` also sets `window.beats` for scripts outside Vue.
 
-The module has been tested with mocked Nuxt APIs, not yet in a running
-Nuxt application.
+**Ingest key per request.** When the server-side rendered request carries
+the header `x-revenexx-beats-key`, its value is the key of that page and
+wins over `beats.key` (a server plugin puts it into the Nuxt payload). The
+revenexx platform sets it on shared theme Sites, one deployment for many
+tenants. Use it only behind a proxy that sets the header and drops copies
+sent by clients. `requestKeyHeader` names another header, `false` turns it
+off.
+
+**Theme events.** The module maps the revenexx theme event stream
+(`theme-events/1`, the `revenexx:event` hook and DOM event) onto the
+e-commerce helpers: `view_item_list` → `productListViewed`, `view_item` →
+`productViewed`, `add_to_cart` → `productAdded`, `purchase` →
+`orderCompleted`, `request_quote` → `quoteRequested` and so on (table in
+the [package README](../packages/nuxt/README.md#theme-events)). Page
+views still come from the router. `themeEvents: false` turns it off,
+`themeEvents: { priceBasis: 'gross' }` uses gross prices.
 
 ## React
 

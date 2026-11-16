@@ -11,9 +11,17 @@ export interface FakeNuxtApp {
   [key: string]: unknown;
 }
 
-export const state: { config: Record<string, unknown>; router?: Router; app: FakeNuxtApp } = {
+export const state: {
+  config: Record<string, unknown>;
+  router?: Router;
+  app: FakeNuxtApp;
+  headers: Record<string, string>;
+  useState: Record<string, { value: unknown }>;
+} = {
   config: {},
   app: makeApp(),
+  headers: {},
+  useState: {},
 };
 
 export function makeApp(): FakeNuxtApp {
@@ -36,3 +44,9 @@ export function defineNuxtPlugin<T>(fn: (app: FakeNuxtApp) => T) {
 export const useRuntimeConfig = () => ({ public: state.config });
 export const useRouter = () => state.router!;
 export const useNuxtApp = () => state.app;
+export const useRequestHeaders = (names: string[]) =>
+  Object.fromEntries(names.filter((n) => n in state.headers).map((n) => [n, state.headers[n]])) as Record<string, string | undefined>;
+export function useState<T>(key: string, init?: () => T): { value: T } {
+  if (!(key in state.useState)) state.useState[key] = { value: init ? init() : undefined };
+  return state.useState[key] as { value: T };
+}
