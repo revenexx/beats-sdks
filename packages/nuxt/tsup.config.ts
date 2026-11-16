@@ -27,7 +27,7 @@ export default defineConfig([
   },
   {
     // runtime files are compiled by the Nuxt app's bundler, which resolves #app
-    entry: ['src/runtime/plugin.client.ts', 'src/runtime/composables.ts'],
+    entry: ['src/runtime/plugin.client.ts', 'src/runtime/plugin.server.ts', 'src/runtime/request-key.ts', 'src/runtime/theme-events.ts', 'src/runtime/composables.ts'],
     outDir: 'dist/runtime',
     format: ['esm'],
     dts: false,

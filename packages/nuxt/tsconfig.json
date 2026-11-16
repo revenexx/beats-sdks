@@ -1,7 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "paths": { "#app": ["./test/nuxt-app-mock.ts"] }
+    "paths": {
+      "#app": ["./test/nuxt-app-mock.ts"],
+      "@revenexx/beats-core": ["../core/src/index.ts"]
+    }
   },
   "include": ["src", "test"],
   "exclude": ["src/augment.d.ts"]
