@@ -162,7 +162,7 @@ export function createClient<T extends BeatsCore = BeatsCore>(plugins: Plugin[] 
         distinct_id: s._uid || s._aid || undefined,
         session_id: s._sid || undefined,
         url: location.href,
-        title: o!.captureTitle ? document.title : undefined,
+        title: o!.captureTitle === false ? undefined : document.title,
         screen_width: innerWidth,
         language: navigator.language,
         properties: { ...s._p, ...props },

@@ -116,14 +116,14 @@ describe('Nuxt runtime plugin', () => {
     const sanitizeUrl = (u: string) => u;
     Object.assign(fileConfig, { beforeSend, sanitizeUrl });
     try {
-      await run({ key: 'bk_1', apiHost: 'https://beats.test', captureTitle: true, allowedQueryParams: ['tab'] });
+      await run({ key: 'bk_1', apiHost: 'https://beats.test', captureTitle: false, allowedQueryParams: ['tab'] });
     } finally {
       for (const k of Object.keys(fileConfig)) delete (fileConfig as Record<string, unknown>)[k];
     }
     expect(init).toHaveBeenCalledWith({
       key: 'bk_1',
       apiHost: 'https://beats.test',
-      captureTitle: true,
+      captureTitle: false,
       allowedQueryParams: ['tab'],
       beforeSend,
       sanitizeUrl,

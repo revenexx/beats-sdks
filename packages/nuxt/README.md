@@ -18,14 +18,14 @@ Options can be set at runtime with `NUXT_PUBLIC_BEATS_KEY`, `NUXT_PUBLIC_BEATS_A
 
 ## Privacy defaults, `beforeSend` and `sanitizeUrl`
 
-URLs and referrers are sent without query string and fragment, except the UTM parameters and `gclid`; titles are not sent. Page views and every later event of a page carry the matched route pattern (`route: '/customers/:id'`) and the route name (`route_name`); `routeProperties: false` turns that off.
+URLs and referrers are sent without query string and fragment, except the UTM parameters and `gclid`; the page title is sent (`captureTitle: false` turns it off). Page views and every later event of a page carry the matched route pattern (`route: '/customers/:id'`) and the route name (`route_name`); `routeProperties: false` turns that off.
 
 ```js
 beats: {
   apiHost: 'https://beats.example.com',
   // replaces the default list: keep the defaults and add the app's harmless parameters
   allowedQueryParams: ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid', 'tab', 'view', 'page', 'sort'],
-  // captureTitle: true, captureQueryString: true restore the old behaviour
+  // captureQueryString: true restores the full URL; captureTitle: false leaves out titles
 },
 ```
 

@@ -13,7 +13,7 @@ beats.init({ key: 'bk_...', apiHost: 'https://beats.example.com' });
 beats.track('signup', { plan: 'pro' });
 ```
 
-By default URLs and referrers are sent without query string and fragment (UTM parameters and `gclid` are kept; `allowedQueryParams` changes the list, `captureQueryString: true` sends everything) and without the page title (`captureTitle: true`). `sanitizeUrl(url)` rewrites paths, for example tokens; `beforeSend(event)` changes any event or drops it by returning `null`:
+By default URLs and referrers are sent without query string and fragment (UTM parameters and `gclid` are kept; `allowedQueryParams` changes the list, `captureQueryString: true` sends everything) (the page title is sent; `captureTitle: false` turns it off). `sanitizeUrl(url)` rewrites paths, for example tokens; `beforeSend(event)` changes any event or drops it by returning `null`:
 
 ```js
 beats.init({
