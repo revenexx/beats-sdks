@@ -1,6 +1,6 @@
 {
   "name": "@revenexx/beats-nuxt",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Nuxt 3 and 4 module for the beats browser client.",
   "license": "MIT",
   "homepage": "https://github.com/revenexx/beats-sdks/tree/main/packages/nuxt#readme",
