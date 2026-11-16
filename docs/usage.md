@@ -20,7 +20,7 @@ beats serves two builds of the browser client:
 
 | File | Contains | Size (gzip) |
 | --- | --- | --- |
-| `/beats.js` | page views (also in single-page apps), page leave, `track`, `register`, `consent`, batching, retries, URL cleaning, `beforeSend` | about 2.2 KB |
+| `/beats.js` | page views (also in single-page apps), page leave, `track`, `register`, `consent`, batching, retries, URL cleaning, `beforeSend` | about 2.3 KB |
 | `/beats.full.js` | everything in `@revenexx/beats-browser` | about 5.2 KB |
 
 ```html
@@ -177,7 +177,9 @@ window, navigation away) and before the next SPA page view. It carries
 last became visible, and `$scroll_depth`, the furthest point scrolled to
 in percent of the page height. A page view can therefore have several
 `$pageleave` events; the time on the page is the sum of their
-`$duration_ms`.
+`$duration_ms`. Its title is the page's own: the current title when the
+page is hidden, the title of its page view on SPA navigation (by then
+the next page has usually set its title).
 
 For a 404 page:
 
@@ -355,8 +357,12 @@ beats.productViewed({ item });
 ```
 
 With `router`, page views are sent after each completed navigation (not
-for failed or aborted ones, nor for hash changes) on the next tick, when
-the new page has set its title; the history API is then not watched.
+for failed or aborted ones, nor for hash changes) on the next tick after
+`router.afterEach`, when the new page has rendered and mounted, so a title
+set in `setup` or `onMounted` is the one sent; the history API is then not
+watched. A page that sets its title later (after loading data) can pass
+`ready` (a function returning a promise) to `createBeatsPlugin` or
+`trackRouter` to delay the page view.
 Without `router`, the client's history API tracking is used. The client
 is also available as `$beats` in templates. During server-side rendering
 nothing is initialized.
@@ -384,7 +390,11 @@ The options go to `runtimeConfig.public.beats` and can be set at runtime
 with `NUXT_PUBLIC_BEATS_KEY`, `NUXT_PUBLIC_BEATS_API_HOST` and so on. The
 client runs in a client-only plugin; page views are sent on route changes,
 with `route` and `route_name` as in Vue (`routeProperties: false` turns
-them off). `useBeats()` is auto-imported; on the server it returns a
+them off). Nuxt holds back head updates (`useHead`, `useSeoMeta`) until the
+new page has finished, so the page view waits for `page:finish` and the
+head update after it, and carries the new page's title; a navigation
+without `page:finish` (a new query on the same page) sends it after at
+most one second. `useBeats()` is auto-imported; on the server it returns a
 client whose calls do nothing.
 
 `captureQueryString`, `allowedQueryParams` and `captureTitle` are set

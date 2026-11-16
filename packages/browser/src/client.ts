@@ -109,6 +109,9 @@ export function createClient<T extends BeatsCore = BeatsCore>(plugins: Plugin[] 
   // current page view: URL key, URL, visible time and scroll depth
   let key = '';
   let lastUrl: string | undefined;
+  // title of the current page view, for its `$pageleave`: on SPA navigation
+  // the next page has usually set its own title by the time the leave is sent
+  let lastTitle: string | undefined;
   let visibleSince = 0;
   let visible = 0;
   let depth = 0;
@@ -130,6 +133,8 @@ export function createClient<T extends BeatsCore = BeatsCore>(plugins: Plugin[] 
     }
     return o!.sanitizeUrl ? o!.sanitizeUrl(u) : u;
   };
+
+  const title = () => (o!.captureTitle === false ? undefined : document.title);
 
   const ctx: Ctx = {
     _s: s,
@@ -162,7 +167,7 @@ export function createClient<T extends BeatsCore = BeatsCore>(plugins: Plugin[] 
         distinct_id: s._uid || s._aid || undefined,
         session_id: s._sid || undefined,
         url: location.href,
-        title: o!.captureTitle === false ? undefined : document.title,
+        title: title(),
         screen_width: innerWidth,
         language: navigator.language,
         properties: { ...s._p, ...props },
@@ -204,20 +209,22 @@ export function createClient<T extends BeatsCore = BeatsCore>(plugins: Plugin[] 
     depth = Math.max(depth, h ? Math.min(100, Math.round(((scrollY + innerHeight) / h) * 100)) : 100);
   };
 
-  // Ends the visible period of the page view and reports it as `$pageleave`.
-  function leave(): void {
+  // Ends the visible period of the page view and reports it as `$pageleave`,
+  // with the current title when hidden and the page view's title on navigation.
+  function leave(pageTitle = title()): void {
     if (visibleSince) visible += Date.now() - visibleSince;
     if (leavePending && o!.trackPageleave !== false)
-      ctx._send('$pageleave', { $duration_ms: Math.round(visible), $scroll_depth: depth }, { url: lastUrl });
+      ctx._send('$pageleave', { $duration_ms: Math.round(visible), $scroll_depth: depth }, { url: lastUrl, title: pageTitle });
     leavePending = false;
     visibleSince = visible = 0;
   }
 
   function pageview(props?: Properties): void {
-    if (lastUrl) leave();
+    if (lastUrl) leave(lastTitle);
     key = pageKey();
     ctx._send('$pageview', props, { referrer: lastUrl ?? (document.referrer || undefined) });
     lastUrl = location.href;
+    lastTitle = title();
     depth = 0;
     scroll();
     visibleSince = document.hidden ? 0 : Date.now();

@@ -78,6 +78,14 @@ describe('Nuxt module', () => {
   });
 });
 
+const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
+/** Lets the router settle, then fires Nuxt's `page:finish` and waits for the page view. */
+async function finishPage() {
+  await tick(5);
+  await state.app.callHook('page:finish');
+  await tick(5);
+}
+
 describe('Nuxt runtime plugin', () => {
   async function run(config: Record<string, unknown>, requestKey?: string) {
     state.config = { beats: config };
@@ -102,10 +110,46 @@ describe('Nuxt runtime plugin', () => {
     expect(init).toHaveBeenCalledWith({ key: 'bk_1', apiHost: 'https://beats.test', autoPageviews: false });
     expect(result.provide.beats).toBe(beats);
     expect((window as { beats?: unknown }).beats).toBe(beats);
-    await new Promise((r) => setTimeout(r, 10));
+    await finishPage();
     await state.router!.push('/shop');
-    await new Promise((r) => setTimeout(r, 10));
+    await finishPage();
     expect(pageview).toHaveBeenCalledTimes(2);
+  });
+
+  it('sends the page view after page:finish and the head update, with the new title', async () => {
+    vi.spyOn(beats, 'init').mockImplementation(() => {});
+    vi.spyOn(beats, 'register').mockImplementation(() => {});
+    const titles: string[] = [];
+    vi.spyOn(beats, 'pageview').mockImplementation(() => void titles.push(document.title));
+    document.title = 'Home';
+    await run({ key: 'bk_1', apiHost: 'https://beats.test' });
+    await finishPage();
+    // what Nuxt 4's head plugin (registered before ours in a real app) does on
+    // page:finish: the head is written after a zero timeout
+    state.app.hooks['page:finish']!.unshift(() => void setTimeout(() => (document.title = 'Shop'), 0));
+    await state.router!.push('/shop');
+    await tick(20);
+    // the page has not finished yet: no page view with the old title
+    expect(titles).toEqual(['Home']);
+    await state.app.callHook('page:finish');
+    await tick(10);
+    expect(titles).toEqual(['Home', 'Shop']);
+  });
+
+  it('sends the page view after a fallback when no page:finish comes (same page, new query)', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      vi.spyOn(beats, 'init').mockImplementation(() => {});
+      vi.spyOn(beats, 'register').mockImplementation(() => {});
+      const pageview = vi.spyOn(beats, 'pageview').mockImplementation(() => {});
+      await run({ key: 'bk_1', apiHost: 'https://beats.test' });
+      await vi.advanceTimersByTimeAsync(999);
+      expect(pageview).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(5);
+      expect(pageview).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('passes beforeSend and sanitizeUrl from beats.config and privacy options from runtime config', async () => {
@@ -129,7 +173,7 @@ describe('Nuxt runtime plugin', () => {
       sanitizeUrl,
       autoPageviews: false,
     });
-    await new Promise((r) => setTimeout(r, 10));
+    await finishPage();
     expect(pageview).toHaveBeenCalledWith({ route: '/', route_name: undefined });
     expect(register).toHaveBeenCalledWith({ route: '/', route_name: undefined });
   });
@@ -138,7 +182,7 @@ describe('Nuxt runtime plugin', () => {
     vi.spyOn(beats, 'init').mockImplementation(() => {});
     const pageview = vi.spyOn(beats, 'pageview').mockImplementation(() => {});
     await run({ key: 'bk_1', apiHost: 'https://beats.test', routeProperties: false });
-    await new Promise((r) => setTimeout(r, 10));
+    await finishPage();
     expect(pageview).toHaveBeenCalledWith(undefined);
   });
 

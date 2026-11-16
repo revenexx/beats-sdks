@@ -617,6 +617,31 @@ describe('pageviews and page leave', () => {
     ]);
   });
 
+  it('$pageleave carries the title of the page left: its page view title on navigation, the current one when hidden', async () => {
+    const r = recordRequests();
+    const { client } = makeClient();
+    document.title = 'Home';
+    client.pageview();
+    // the next page sets its title before its page view is sent
+    history.pushState(null, '', '/customers/42');
+    document.title = 'Jane Doe';
+    client.pageview();
+    document.title = 'Jane Doe – orders'; // changed while on the page
+    setVisibility('hidden');
+    await settle();
+    expect(r.events().map((e) => [e.event, e.title])).toEqual([
+      ['$pageview', 'Home'],
+      ['$pageleave', 'Home'],
+      ['$pageview', 'Jane Doe'],
+      ['$pageleave', 'Jane Doe – orders'],
+    ]);
+    const quiet = makeClient({ captureTitle: false }).client;
+    quiet.pageview();
+    quiet.pageview();
+    await settle();
+    expect(r.events().slice(4).every((e) => e.title === undefined)).toBe(true);
+  });
+
   it('trackPageleave: false sends no $pageleave but still flushes on hide', async () => {
     const r = recordRequests();
     const { client } = makeClient({ trackPageleave: false, batching: { size: 50, interval: 60_000 } });

@@ -5,7 +5,7 @@ type Hook = (...a: never[]) => unknown;
 
 export interface FakeNuxtApp {
   hooks: Record<string, Hook[]>;
-  hook(name: string, fn: Hook): void;
+  hook(name: string, fn: Hook): () => void;
   callHook(name: string, ...args: unknown[]): Promise<void>;
   $beats?: unknown;
   [key: string]: unknown;
@@ -30,6 +30,9 @@ export function makeApp(): FakeNuxtApp {
     hooks,
     hook(name, fn) {
       (hooks[name] ??= []).push(fn);
+      return () => {
+        hooks[name] = (hooks[name] ?? []).filter((f) => f !== fn);
+      };
     },
     async callHook(name, ...args) {
       for (const f of hooks[name] ?? []) await (f as (...a: unknown[]) => unknown)(...args);
