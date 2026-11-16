@@ -39,10 +39,11 @@ describe('envelope', () => {
     expect(e).toMatchObject({
       event: 'signup',
       url: 'http://localhost:3000/start',
-      title: 'Start',
       language: navigator.language,
       properties: { plan: 'pro' },
     });
+    // no title by default (captureTitle)
+    expect(e).not.toHaveProperty('title');
     expect(e!.event_id).toMatch(UUID);
     expect(new Date(e!.timestamp!).getTime()).toBeGreaterThan(Date.now() - 5000);
     expect(typeof e!.screen_width).toBe('number');
@@ -115,6 +116,124 @@ describe('envelope', () => {
   });
 });
 
+describe('URLs, titles and beforeSend', () => {
+  const ref = (value: string) => Object.defineProperty(document, 'referrer', { value, configurable: true });
+  afterEach(() => ref(''));
+
+  it('strips query string and fragment from URL and referrer, keeping UTM parameters and gclid', async () => {
+    const r = recordRequests();
+    history.replaceState(null, '', '/invitations/abc?token=s3cret&utm_source=mail&utm_campaign=nov&gclid=g1#top');
+    ref('https://search.example/results?q=jane+doe#x');
+    const { client } = makeClient();
+    client.pageview();
+    client.track('x');
+    await settle();
+    const [view, x] = r.events();
+    expect(view!.url).toBe('http://localhost:3000/invitations/abc?utm_source=mail&utm_campaign=nov&gclid=g1');
+    expect(view!.referrer).toBe('https://search.example/results');
+    expect(x!.url).toBe(view!.url);
+  });
+
+  it('allowedQueryParams replaces the list, captureQueryString: true sends everything', async () => {
+    const r = recordRequests();
+    history.replaceState(null, '', '/customers?tab=orders&sort=date&q=jane&utm_source=mail#row-4');
+    makeClient({ allowedQueryParams: ['tab', 'sort'] }).client.track('a');
+    makeClient({ allowedQueryParams: [] }).client.track('b');
+    makeClient({ captureQueryString: true }).client.track('c');
+    await settle();
+    expect(r.events().map((e) => e.url)).toEqual([
+      'http://localhost:3000/customers?tab=orders&sort=date',
+      'http://localhost:3000/customers',
+      'http://localhost:3000/customers?tab=orders&sort=date&q=jane&utm_source=mail#row-4',
+    ]);
+  });
+
+  it('takes a comma-separated list from a script tag attribute', async () => {
+    const r = recordRequests();
+    history.replaceState(null, '', '/p?tab=a&view=grid&q=x');
+    makeClient({ allowedQueryParams: 'tab,view' as never }).client.track('a');
+    await settle();
+    expect(r.events()[0]!.url).toBe('http://localhost:3000/p?tab=a&view=grid');
+  });
+
+  it('keeps the route of a hash router, without its query', async () => {
+    const r = recordRequests();
+    history.replaceState(null, '', '/app?x=1#/orders/7?token=t');
+    makeClient({ hashRouting: true }).client.track('a');
+    await settle();
+    expect(r.events()[0]!.url).toBe('http://localhost:3000/app#/orders/7');
+  });
+
+  it('sends the title only with captureTitle', async () => {
+    const r = recordRequests();
+    document.title = 'Jane Doe – Customer';
+    makeClient().client.track('a');
+    makeClient({ captureTitle: true }).client.track('b');
+    await settle();
+    expect(r.events()[0]).not.toHaveProperty('title');
+    expect(r.events()[1]!.title).toBe('Jane Doe – Customer');
+  });
+
+  it('applies sanitizeUrl to the URL and the referrer of every event, page leave included', async () => {
+    const r = recordRequests();
+    ref('http://localhost:3000/invitations/tok-1?x=1');
+    history.replaceState(null, '', '/invitations/tok-2');
+    const sanitizeUrl = vi.fn((u: string) => u.replace(/\/invitations\/[^/?#]+/, '/invitations/:token'));
+    makeClient({ autoPageviews: true, sanitizeUrl });
+    await settle();
+    history.pushState(null, '', '/start');
+    await settle();
+    expect(r.events().map((e) => [e.event, e.url, e.referrer])).toEqual([
+      ['$pageview', 'http://localhost:3000/invitations/:token', 'http://localhost:3000/invitations/:token'],
+      ['$pageleave', 'http://localhost:3000/invitations/:token', undefined],
+      ['$pageview', 'http://localhost:3000/start', 'http://localhost:3000/invitations/:token'],
+    ]);
+    // it gets the URL after the query string was removed
+    expect(sanitizeUrl).toHaveBeenCalledWith('http://localhost:3000/invitations/tok-1');
+  });
+
+  it('beforeSend can change every event, commerce and automatic ones included, or drop it with null', async () => {
+    const r = recordRequests();
+    const seen: string[] = [];
+    const { client } = makeClient({
+      autoPageviews: true,
+      beforeSend: (e) => {
+        seen.push(e.event);
+        if (e.event === 'internal_ping') return null;
+        return { ...e, properties: { ...e.properties, checked: true } };
+      },
+    });
+    await settle();
+    client.track('internal_ping');
+    client.productViewed({ item: { product_id: 'p-1', price: 1 } });
+    client.identify('42');
+    setVisibility('hidden');
+    await settle();
+    expect(seen).toEqual(['$pageview', 'internal_ping', '$product_viewed', '$identify', '$pageleave']);
+    expect(r.names()).toEqual(['$pageview', '$product_viewed', '$identify', '$pageleave']);
+    expect(r.events().every((e) => e.properties!.checked === true)).toBe(true);
+  });
+
+  it('drops the event when beforeSend or sanitizeUrl throws', async () => {
+    const r = recordRequests();
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    makeClient({
+      beforeSend: () => {
+        throw new Error('boom');
+      },
+    }).client.track('a');
+    makeClient({
+      sanitizeUrl: () => {
+        throw new Error('boom');
+      },
+    }).client.track('b');
+    makeClient().client.track('c');
+    await settle();
+    expect(r.names()).toEqual(['c']);
+    expect(error).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('cookieless mode (default)', () => {
   it('stores nothing and sets no cookies', async () => {
     const r = recordRequests();
@@ -132,15 +251,35 @@ describe('cookieless mode (default)', () => {
   it('uses the user id from identify for the rest of the page, in memory', async () => {
     const r = recordRequests();
     const { client } = makeClient();
-    client.identify('user-1', { email: 'a@example.com' });
+    client.identify('user-1', { plan: 'pro' });
     client.track('x');
     await settle();
     expect(r.events()).toMatchObject([
-      { event: '$identify', distinct_id: 'user-1', properties: { $set: { email: 'a@example.com' } } },
+      { event: '$identify', distinct_id: 'user-1', properties: { $set: { plan: 'pro' } } },
       { event: 'x', distinct_id: 'user-1' },
     ]);
     expect(r.events()[0]!.properties).not.toHaveProperty('$anon_distinct_id');
     expect(client.getDistinctId()).toBe('user-1');
+  });
+
+  it('identify with the plain user id works without consent: nothing stored, consent false', async () => {
+    const r = recordRequests();
+    const { client } = makeClient();
+    client.identify('42');
+    client.register({ tenant: 'acme', role: 'admin', plan: 'pro', locale: 'de-DE', app_version: '4.2.0' });
+    client.track('report_exported');
+    await settle();
+    expect(storageKeys()).toEqual([]);
+    expect(r.requests.map((x) => x.body.consent)).toEqual([false, false]);
+    expect(r.events()).toMatchObject([
+      { event: '$identify', distinct_id: '42', properties: {} },
+      {
+        event: 'report_exported',
+        distinct_id: '42',
+        properties: { tenant: 'acme', role: 'admin', plan: 'pro', locale: 'de-DE', app_version: '4.2.0' },
+      },
+    ]);
+    expect(r.events()[0]!.properties).not.toHaveProperty('$set');
   });
 });
 
@@ -413,10 +552,11 @@ describe('pageviews and page leave', () => {
     history.replaceState(null, '', '/start'); // back navigation is covered by the browser tests
     await settle(20);
     const views = r.events().filter((e) => e.event === '$pageview');
+    // the query string is not sent by default, but a change of it is still a page view
     expect(views.map((e) => [e.url, e.referrer])).toEqual([
       ['http://localhost:3000/start', 'https://search.example/'],
-      ['http://localhost:3000/products?page=2', 'http://localhost:3000/start'],
-      ['http://localhost:3000/start', 'http://localhost:3000/products?page=2'],
+      ['http://localhost:3000/products', 'http://localhost:3000/start'],
+      ['http://localhost:3000/start', 'http://localhost:3000/products'],
     ]);
     expect(client.getDistinctId()).toBeUndefined();
   });

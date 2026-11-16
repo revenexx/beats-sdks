@@ -16,6 +16,31 @@ export default defineNuxtConfig({
 
 Options can be set at runtime with `NUXT_PUBLIC_BEATS_KEY`, `NUXT_PUBLIC_BEATS_API_HOST` and so on; `useBeats()` is auto-imported.
 
+## Privacy defaults, `beforeSend` and `sanitizeUrl`
+
+URLs and referrers are sent without query string and fragment, except the UTM parameters and `gclid`; titles are not sent. Page views and every later event of a page carry the matched route pattern (`route: '/customers/:id'`) and the route name (`route_name`); `routeProperties: false` turns that off.
+
+```js
+beats: {
+  apiHost: 'https://beats.example.com',
+  // replaces the default list: keep the defaults and add the app's harmless parameters
+  allowedQueryParams: ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid', 'tab', 'view', 'page', 'sort'],
+  // captureTitle: true, captureQueryString: true restore the old behaviour
+},
+```
+
+Functions cannot live in runtime config. Put them in `beats.config.ts` in the source directory (`app/` in Nuxt 4) or the project root (`beats.config` names another file); `defineBeatsConfig` is auto-imported:
+
+```ts
+// app/beats.config.ts
+export default defineBeatsConfig({
+  sanitizeUrl: (url) => url.replace(/\/invitations\/[^/?#]+/, '/invitations/:token'),
+  beforeSend: (event) => (event.event === 'debug_ping' ? null : event), // null drops the event
+});
+```
+
+For logged-in apps: `useBeats().identify(user.id)` with the internal id only (no e-mail, no name) works without consent and stores nothing; `useBeats().register({ tenant, role, plan, locale, app_version })` adds context to every event.
+
 ## Ingest key per request
 
 One deployment can serve several beats projects. When the server-side rendered request carries the header `x-revenexx-beats-key`, its value is the ingest key of that page and wins over `beats.key`; without the header, `beats.key` is used. The revenexx platform sets this header on shared theme Sites to the tenant's key, so a theme needs no key in its config:

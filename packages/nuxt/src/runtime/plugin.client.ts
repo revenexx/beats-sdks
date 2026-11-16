@@ -1,6 +1,8 @@
 import { beats, type BeatsOptions } from '@revenexx/beats-browser';
 import { trackRouter } from '@revenexx/beats-vue';
 import { defineNuxtPlugin, useRouter, useRuntimeConfig, useState } from '#app';
+import fileConfig from '#build/beats.config.mjs';
+import type { BeatsConfig } from './config.js';
 import { KEY_STATE, requestKey } from './request-key.js';
 import { listenToThemeEvents, type PriceBasis } from './theme-events.js';
 
@@ -8,10 +10,16 @@ interface PluginOptions extends Partial<BeatsOptions> {
   exposeGlobal?: boolean;
   requestKeyHeader?: string | false;
   themeEvents?: boolean | { priceBasis?: PriceBasis };
+  routeProperties?: boolean;
 }
 
 export default defineNuxtPlugin((nuxtApp) => {
-  const { exposeGlobal, requestKeyHeader, themeEvents, ...options } = (useRuntimeConfig().public.beats ?? {}) as PluginOptions;
+  const { exposeGlobal, requestKeyHeader, themeEvents, routeProperties, ...options } = (useRuntimeConfig().public.beats ??
+    {}) as PluginOptions;
+  // functions from beats.config.ts (runtime config holds only JSON values)
+  const { beforeSend, sanitizeUrl } = (fileConfig ?? {}) as BeatsConfig;
+  if (beforeSend) options.beforeSend = beforeSend;
+  if (sanitizeUrl) options.sanitizeUrl = sanitizeUrl;
   // the key the server read from the request wins over the configured one
   const fromRequest = requestKeyHeader === false ? undefined : requestKey(useState<string | undefined>(KEY_STATE).value);
   const key = fromRequest ?? options.key;
@@ -23,7 +31,7 @@ export default defineNuxtPlugin((nuxtApp) => {
   } else {
     // page views come from the router, not from the history API
     beats.init({ ...(options as BeatsOptions), key, autoPageviews: false });
-    if (options.autoPageviews !== false) trackRouter(useRouter(), beats);
+    if (options.autoPageviews !== false) trackRouter(useRouter(), beats, { routeProperties });
     if (themeEvents !== false) {
       const basis = typeof themeEvents === 'object' && themeEvents.priceBasis === 'gross' ? 'gross' : 'net';
       listenToThemeEvents(nuxtApp, beats, basis, window);

@@ -8,7 +8,7 @@ import type { BeatsClient } from './types.js';
 
 export type * from './types.js';
 export type { CommerceHelper, CommerceInputs, Item, Amount } from '@revenexx/beats-core';
-export { KEYS } from './client.js';
+export { DEFAULT_QUERY_PARAMS, KEYS } from './client.js';
 
 /** Creates a full browser client. Call `init` on it before or after the first events. */
 export function createBeats(): BeatsClient {

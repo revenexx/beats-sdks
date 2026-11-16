@@ -1,5 +1,5 @@
 // Building blocks for a custom client: `createClient([people, commerce])`.
-export { createClient, KEYS, st, type Ctx, type Plugin, type State } from './client.js';
+export { createClient, DEFAULT_QUERY_PARAMS, KEYS, st, type Ctx, type Plugin, type State } from './client.js';
 export { people } from './plugins/people.js';
 export { privacy } from './plugins/privacy.js';
 export { commerce } from './plugins/commerce.js';

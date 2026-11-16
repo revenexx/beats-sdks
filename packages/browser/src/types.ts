@@ -38,6 +38,35 @@ export interface BeatsOptions {
   maxRetries?: number;
   /** Minutes of inactivity after which a new session starts (identified mode). Default 30. */
   sessionTimeout?: number;
+  /**
+   * Send URLs and referrers with their full query string and fragment.
+   * Default false: both are removed, except the parameters in
+   * `allowedQueryParams` (and, with `hashRouting`, the path in the fragment).
+   */
+  captureQueryString?: boolean;
+  /**
+   * Query parameters kept when `captureQueryString` is false; replaces the
+   * default list. Default `DEFAULT_QUERY_PARAMS`: `utm_source`, `utm_medium`,
+   * `utm_campaign`, `utm_term`, `utm_content`, `gclid`. An app UI may add its
+   * own harmless ones: `[...DEFAULT_QUERY_PARAMS, 'tab', 'view', 'page', 'sort']`.
+   * Script tag: comma-separated.
+   */
+  allowedQueryParams?: string[];
+  /** Send `document.title` with each event. Default false: titles often name a customer, an order or a search. */
+  captureTitle?: boolean;
+  /**
+   * Rewrites the URL and the referrer of each event after the query string
+   * has been handled, for example to replace tokens in paths:
+   * `(url) => url.replace(/\/invitations\/[^/?#]+/, '/invitations/:token')`.
+   * If it throws, the event is dropped.
+   */
+  sanitizeUrl?: (url: string) => string;
+  /**
+   * Called with every event (page views, page leave, custom, people and
+   * commerce events) before it is queued. Return the event, changed or not,
+   * or `null` to drop it. If it throws, the event is dropped.
+   */
+  beforeSend?: (event: Envelope) => Envelope | null;
   /** Currency of commerce events that name none (ISO 4217). */
   currency?: string;
   /** Log events and validation warnings to the console. Default false. */

@@ -3,6 +3,7 @@
   "compilerOptions": {
     "paths": {
       "#app": ["./test/nuxt-app-mock.ts"],
+      "#build/beats.config.mjs": ["./test/beats-config-mock.ts"],
       "@revenexx/beats-core": ["../core/src/index.ts"]
     }
   },
