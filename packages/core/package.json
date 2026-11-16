@@ -1,6 +1,6 @@
 {
   "name": "@revenexx/beats-core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Shared event types, item model, validation and normalization of the beats clients (internal).",
   "license": "MIT",
   "homepage": "https://github.com/revenexx/beats-sdks/tree/main/packages/core#readme",
