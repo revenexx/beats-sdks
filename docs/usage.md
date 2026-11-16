@@ -20,8 +20,8 @@ beats serves two builds of the browser client:
 
 | File | Contains | Size (gzip) |
 | --- | --- | --- |
-| `/beats.js` | page views (also in single-page apps), page leave, `track`, `register`, `consent`, batching, retries | about 2.0 KB |
-| `/beats.full.js` | everything in `@revenexx/beats-browser` | about 5.0 KB |
+| `/beats.js` | page views (also in single-page apps), page leave, `track`, `register`, `consent`, batching, retries, URL cleaning, `beforeSend` | about 2.2 KB |
+| `/beats.full.js` | everything in `@revenexx/beats-browser` | about 5.2 KB |
 
 ```html
 <script>
@@ -88,6 +88,11 @@ custom client.
 | `batching` | `{ size: 10, interval: 1000 }` | Send when `size` events are queued or after `interval` ms. `false` sends each event at once. At most 1,000 events per request. |
 | `maxRetries` | `10` | Retries of a failed request. |
 | `sessionTimeout` | `30` | Minutes without events after which a new session starts (identified mode). |
+| `captureQueryString` | `false` | Send URLs and referrers with their full query string and fragment. By default both are removed except the `allowedQueryParams` (see [URLs, titles and `beforeSend`](#urls-titles-and-beforesend)). |
+| `allowedQueryParams` | UTM parameters and `gclid` | Query parameters kept when `captureQueryString` is off; a list replaces the default (`DEFAULT_QUERY_PARAMS`). Script tag: comma-separated. |
+| `captureTitle` | `false` | Send `document.title`. |
+| `sanitizeUrl` | — | `(url) => url`: rewrites the URL and referrer of each event, for example to replace tokens in paths. Not as a `data-*` attribute. |
+| `beforeSend` | — | `(event) => event \| null`: changes or drops each event before it is queued. Not as a `data-*` attribute. |
 | `currency` | — | Currency of commerce events that name none. |
 | `debug` | `false` | Log events and validation warnings to the console. |
 
@@ -112,6 +117,52 @@ Each event gets an `event_id` (UUID) on the client; the server skips ids
 it has already written, so a retry does not count twice.
 
 Automated browsers (`navigator.webdriver` is set) send nothing.
+
+### URLs, titles and `beforeSend`
+
+Paths, query strings and titles of web apps often hold personal data: a
+customer page titled with the customer's name, `?code=` from an OAuth
+redirect, a search for a person, `/invitations/<token>`. The client
+therefore sends, by default:
+
+- the URL and the referrer **without query string and fragment**, except
+  the parameters in `allowedQueryParams`. The default list is
+  `DEFAULT_QUERY_PARAMS`: `utm_source`, `utm_medium`, `utm_campaign`,
+  `utm_term`, `utm_content` and `gclid`, which the server needs for
+  campaigns and channels. With `hashRouting`, the fragment is the route
+  and its path is kept (not a query string inside it);
+- **no title** (`captureTitle: false`).
+
+A change of the query string still counts as a new page view; only the
+sent URL is shorter. An app UI can keep its own harmless parameters; the
+list replaces the default one:
+
+```js
+import { beats, DEFAULT_QUERY_PARAMS } from '@revenexx/beats-browser';
+
+beats.init({
+  key: 'bk_...',
+  apiHost: 'https://beats.example.com',
+  allowedQueryParams: [...DEFAULT_QUERY_PARAMS, 'tab', 'view', 'page', 'sort'],
+  // tokens and ids in paths
+  sanitizeUrl: (url) => url.replace(/\/invitations\/[^/?#]+/, '/invitations/:token'),
+  // last word on every event: change it, or return null to drop it
+  beforeSend: (event) => (event.event === 'debug_ping' ? null : event),
+});
+```
+
+Never put a parameter that can carry a search term, a name, an e-mail
+address or a token on the list. `captureQueryString: true` and
+`captureTitle: true` restore the full URL and the title.
+
+`sanitizeUrl` gets each URL and referrer after the query string has been
+handled. `beforeSend` gets every event after that: page views, page leave,
+custom events, `$identify`, `$set`, `$group` and the e-commerce helpers.
+It may change the event or return a new one; `null` drops it. If either
+function throws, the event is dropped and the error is logged.
+
+Neither touches link targets in `$outbound_click` and `$file_download`
+(`properties.$href`); change those in `beforeSend` if needed.
 
 ## Web analytics
 
@@ -158,6 +209,25 @@ user id from `identify` is kept in memory in cookieless mode and in
 `localStorage` in identified mode. In cookieless mode `setPersonProperties`
 sends nothing before `identify`, because the server needs a distinct id
 for `$set`.
+
+**Logged-in apps.** `identify` works in cookieless mode, without
+`consent`: it stores nothing on the device, and the server links the
+visitor's cookieless id of the day to the user id. Call it after login and
+on every page load of a signed-in session (the id lives in memory only),
+and `reset()` on logout. Pass the plain, internal user id only, no traits:
+no e-mail address, no name, no phone number, neither in `identify` nor in
+`setPersonProperties`. Context that is not personal goes on every event
+with `register`:
+
+```js
+beats.identify(user.id); // the internal id, nothing else
+beats.register({ tenant: tenant.slug, role: 'admin', plan: 'pro', locale: 'de-DE', app_version: '4.2.0' });
+```
+
+`register` again when a value changes (a tenant switch); `reset()` clears
+all registered properties, so register them again after it if the app
+stays open. With a SPA, registered properties stay until the page is
+reloaded.
 
 `optOut()` stops sending and stores `beats_optout` in `localStorage`, which
 every build honours on later pages; `optIn()` removes it.
@@ -290,6 +360,15 @@ Without `router`, the client's history API tracking is used. The client
 is also available as `$beats` in templates. During server-side rendering
 nothing is initialized.
 
+**Route properties.** With `router`, each page view carries the matched
+route pattern as `route` (for example `/customers/:id`, Nuxt's `:id()`
+written `:id`) and the route name as `route_name`, and both are
+registered, so every later event of the page carries them too, its
+`$pageleave` included. The pattern holds no ids, so reports can group by
+it while the URL keeps the real path (redact ids or tokens in it with
+`sanitizeUrl`). `routeProperties: false` turns this off;
+`trackRouter(router, client, { routeProperties: false })` likewise.
+
 ## Nuxt
 
 ```js
@@ -302,9 +381,28 @@ export default defineNuxtConfig({
 
 The options go to `runtimeConfig.public.beats` and can be set at runtime
 with `NUXT_PUBLIC_BEATS_KEY`, `NUXT_PUBLIC_BEATS_API_HOST` and so on. The
-client runs in a client-only plugin; page views are sent on route changes.
-`useBeats()` is auto-imported; on the server it returns a client whose
-calls do nothing.
+client runs in a client-only plugin; page views are sent on route changes,
+with `route` and `route_name` as in Vue (`routeProperties: false` turns
+them off). `useBeats()` is auto-imported; on the server it returns a
+client whose calls do nothing.
+
+`captureQueryString`, `allowedQueryParams` and `captureTitle` are set
+like any other option (`beats: { allowedQueryParams: ['utm_source', 'utm_medium',
+'utm_campaign', 'utm_term', 'utm_content', 'gclid', 'tab', 'view', 'page', 'sort'] }`).
+Runtime config holds no functions, so `beforeSend` and `sanitizeUrl` go
+into `beats.config.ts` in the source directory (`app/` in Nuxt 4) or the
+project root; `defineBeatsConfig` is auto-imported:
+
+```ts
+// app/beats.config.ts
+export default defineBeatsConfig({
+  sanitizeUrl: (url) => url.replace(/\/invitations\/[^/?#]+/, '/invitations/:token'),
+  beforeSend: (event) => event,
+});
+```
+
+`beats: { config: '~/analytics/beats' }` names another file. The module
+looks for the file at build time; restart the dev server after adding it.
 
 A consent manager can switch modes with the `beats:consent` hook:
 
@@ -424,12 +522,14 @@ through their `fetch`; there, call `shutdown()` yourself.
   own origin, the browser sends that origin's cookies with the request;
   beats does not read them.
 - The client does not read form fields, text or other page content.
-  Events contain the URL (including the query string), the referrer, the
-  title, the viewport width and the browser language, plus what you send.
-  Remove personal data from URLs (tokens, e-mail addresses in query
-  strings) before they reach the page, or with `autoPageviews: false` and
-  your own `pageview` calls.
+  Events contain the URL and the referrer without query string and
+  fragment (except the UTM parameters, `gclid` and what
+  `allowedQueryParams` adds), the viewport width and the browser
+  language, plus what you send; the title only with `captureTitle`.
+  Paths can still hold personal data (tokens, ids): replace it with
+  `sanitizeUrl`, and anything else with `beforeSend`.
 - Properties are sent as given; do not put personal data into event or
-  person properties without a legal basis.
+  person properties without a legal basis. Identify users by an internal
+  id, not by e-mail address or name, and send no such traits.
 - The IP address is used by the server for geolocation and the cookieless
   visitor id and is not stored.

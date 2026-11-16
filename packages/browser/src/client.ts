@@ -17,6 +17,14 @@ export const KEYS = /* @__PURE__ */ {
   optOut: 'beats_optout',
 } as const;
 
+/**
+ * Query parameters kept in captured URLs and referrers by default: the UTM
+ * campaign parameters and Google Ads' `gclid` (the server reads them for
+ * campaigns and channels). Everything else in the query string, and the
+ * fragment, is removed unless `captureQueryString` is true.
+ */
+export const DEFAULT_QUERY_PARAMS: string[] = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid'];
+
 export const AID = 'beats_id';
 export const UID = 'beats_uid';
 const SID = 'beats_sid';
@@ -105,6 +113,23 @@ export function createClient<T extends BeatsCore = BeatsCore>(plugins: Plugin[] 
   let visible = 0;
   let depth = 0;
   let leavePending = false;
+  // query parameters kept in URLs (allowedQueryParams)
+  let keep: string[] = [];
+
+  // A URL as it is sent: without query string and fragment (except the
+  // allowed parameters) unless `captureQueryString`, then `sanitizeUrl`.
+  // Only called with absolute URLs (location.href, document.referrer).
+  const clean = (u: string): string => {
+    if (!o!.captureQueryString) {
+      const x = new URL(u);
+      const q = x.searchParams;
+      for (const k of [...q.keys()]) if (!keep.includes(k)) q.delete(k);
+      // with hash routing the fragment is the route: keep its path, not its query
+      x.hash = o!.hashRouting ? (x.hash.split('?')[0] as string) : '';
+      u = x.href;
+    }
+    return o!.sanitizeUrl ? o!.sanitizeUrl(u) : u;
+  };
 
   const ctx: Ctx = {
     _s: s,
@@ -130,20 +155,30 @@ export function createClient<T extends BeatsCore = BeatsCore>(plugins: Plugin[] 
         st(1, SID, s._sid + '.' + at);
       }
       // undefined fields are left out by JSON.stringify
-      const e: Envelope = {
+      let e: Envelope | null = {
         event,
         event_id: uuid(),
         timestamp: new Date(at).toISOString(),
         distinct_id: s._uid || s._aid || undefined,
         session_id: s._sid || undefined,
         url: location.href,
-        title: document.title,
+        title: o!.captureTitle ? document.title : undefined,
         screen_width: innerWidth,
         language: navigator.language,
         properties: { ...s._p, ...props },
         groups: s._g && { ...s._g },
         ...extra,
       };
+      try {
+        if (e.url) e.url = clean(e.url);
+        if (e.referrer) e.referrer = clean(e.referrer);
+        if (o!.beforeSend) e = o!.beforeSend(e);
+      } catch (err) {
+        // a failing hook drops the event instead of sending what it was meant to change
+        console.error('[beats] dropped', event, err);
+        e = null;
+      }
+      if (!e) return;
       if (o!.debug) console.log('[beats]', event, e);
       t._push(e, now);
     },
@@ -220,6 +255,8 @@ export function createClient<T extends BeatsCore = BeatsCore>(plugins: Plugin[] 
     // the script-tag loader only calls init with a key and an API host
     if (__BEATS_NPM__ && (!opts?.key || !opts.apiHost)) return console.warn('beats: key and apiHost required');
     o = ctx._o = opts;
+    // a list, or comma-separated from a script tag's data-allowed-query-params
+    keep = ('' + (opts.allowedQueryParams ?? DEFAULT_QUERY_PARAMS)).split(',');
     const b = opts.batching;
     const cfg = { size: b === false ? 1 : 10, interval: 1000, ...(b as object) };
     t = ctx._t = createTransport(opts.apiHost, opts.key, cfg.size, cfg.interval, opts.maxRetries ?? 10, () => s._id);

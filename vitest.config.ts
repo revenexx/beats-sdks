@@ -9,6 +9,7 @@ const alias = [
   { find: /^@revenexx\/beats-browser\/lite$/, replacement: src('browser', 'lite.ts') },
   { find: /^@revenexx\/beats-(core|browser|node|vue|react|nuxt)$/, replacement: src('$1') },
   { find: /^#app$/, replacement: fileURLToPath(new URL('./packages/nuxt/test/nuxt-app-mock.ts', import.meta.url)) },
+  { find: /^#build\/beats\.config\.mjs$/, replacement: fileURLToPath(new URL('./packages/nuxt/test/beats-config-mock.ts', import.meta.url)) },
 ];
 
 export default defineConfig({

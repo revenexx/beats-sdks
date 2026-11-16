@@ -3,16 +3,27 @@ import { beats } from '@revenexx/beats-browser';
 import { h } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import fileConfig from './beats-config-mock.js';
 import { makeApp, state } from './nuxt-app-mock.js';
 
-const kit = vi.hoisted(() => ({ plugins: [] as unknown[], imports: [] as unknown[] }));
+const kit = vi.hoisted(() => ({
+  plugins: [] as unknown[],
+  imports: [] as unknown[],
+  templates: [] as { filename: string; getContents: () => string }[],
+  files: [] as string[],
+}));
 
 vi.mock('@nuxt/kit', () => ({
   defineNuxtModule: (def: unknown) => def,
   createResolver: () => ({ resolve: (p: string) => `/module/${p.replace('./', '')}` }),
   addPlugin: (p: unknown) => kit.plugins.push(p),
-  addImports: (i: unknown) => kit.imports.push(i),
+  addImports: (i: unknown) => kit.imports.push(...(Array.isArray(i) ? i : [i])),
+  addTemplate: (t: { filename: string; getContents: () => string }) => kit.templates.push(t),
+  findPath: async (paths: string[]) => paths.map((p) => kit.files.find((f) => f.startsWith(`${p}.`))).find(Boolean) ?? null,
 }));
+
+type Setup = { meta: { configKey: string }; setup: (o: object, nuxt: object) => Promise<void> };
+const nuxtWith = (beats: object = {}) => ({ options: { srcDir: '/app/app', rootDir: '/app', runtimeConfig: { public: { beats } } } });
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -21,23 +32,49 @@ afterEach(() => {
 
 describe('Nuxt module', () => {
   it('puts options in public runtime config and adds a client-only plugin and useBeats', async () => {
-    const mod = (await import('../src/module.js')).default as unknown as {
-      meta: { configKey: string };
-      setup: (o: object, nuxt: object) => void;
-    };
+    const mod = (await import('../src/module.js')).default as unknown as Setup;
     expect(mod.meta.configKey).toBe('beats');
-    const nuxt = { options: { runtimeConfig: { public: { beats: { key: 'bk_from_env' } } } } };
-    mod.setup({ key: 'bk_config', apiHost: 'https://beats.example.com', trackOutboundLinks: true }, nuxt);
+    const nuxt = nuxtWith({ key: 'bk_from_env' });
+    await mod.setup(
+      { key: 'bk_config', apiHost: 'https://beats.example.com', trackOutboundLinks: true, allowedQueryParams: ['utm_source', 'tab'] },
+      nuxt,
+    );
     expect(nuxt.options.runtimeConfig.public.beats).toEqual({
       key: 'bk_from_env',
       apiHost: 'https://beats.example.com',
       trackOutboundLinks: true,
+      allowedQueryParams: ['utm_source', 'tab'],
     });
     expect(kit.plugins).toEqual([
       { src: '/module/runtime/plugin.server', mode: 'server' },
       { src: '/module/runtime/plugin.client', mode: 'client' },
     ]);
-    expect(kit.imports).toEqual([{ name: 'useBeats', from: '/module/runtime/composables' }]);
+    expect(kit.imports).toEqual([
+      { name: 'useBeats', from: '/module/runtime/composables' },
+      { name: 'defineBeatsConfig', from: '/module/runtime/config' },
+    ]);
+    // no beats.config file: an empty config
+    expect(kit.templates.at(-1)!.filename).toBe('beats.config.mjs');
+    expect(kit.templates.at(-1)!.getContents()).toBe('export default {};\n');
+  });
+
+  it('re-exports beats.config from the source directory, keeping the config path out of runtime config', async () => {
+    const mod = (await import('../src/module.js')).default as unknown as Setup;
+    kit.files = ['/app/app/beats.config.ts'];
+    const nuxt = nuxtWith();
+    await mod.setup({ key: 'k', apiHost: 'https://beats.test' }, nuxt);
+    expect(kit.templates.at(-1)!.getContents()).toBe('export { default } from "/app/app/beats.config.ts";\n');
+    kit.files = ['/app/config/analytics.ts'];
+    await mod.setup({ key: 'k', apiHost: 'https://beats.test', config: '/app/config/analytics' }, nuxt);
+    expect(kit.templates.at(-1)!.getContents()).toBe('export { default } from "/app/config/analytics.ts";\n');
+    expect(nuxt.options.runtimeConfig.public.beats).not.toHaveProperty('config');
+    kit.files = [];
+  });
+
+  it('defineBeatsConfig returns the config as given', async () => {
+    const { defineBeatsConfig } = await import('../src/runtime/config.js');
+    const config = { sanitizeUrl: (u: string) => u };
+    expect(defineBeatsConfig(config)).toBe(config);
   });
 });
 
@@ -69,6 +106,40 @@ describe('Nuxt runtime plugin', () => {
     await state.router!.push('/shop');
     await new Promise((r) => setTimeout(r, 10));
     expect(pageview).toHaveBeenCalledTimes(2);
+  });
+
+  it('passes beforeSend and sanitizeUrl from beats.config and privacy options from runtime config', async () => {
+    const init = vi.spyOn(beats, 'init').mockImplementation(() => {});
+    const register = vi.spyOn(beats, 'register').mockImplementation(() => {});
+    const pageview = vi.spyOn(beats, 'pageview').mockImplementation(() => {});
+    const beforeSend = (e: never) => e;
+    const sanitizeUrl = (u: string) => u;
+    Object.assign(fileConfig, { beforeSend, sanitizeUrl });
+    try {
+      await run({ key: 'bk_1', apiHost: 'https://beats.test', captureTitle: true, allowedQueryParams: ['tab'] });
+    } finally {
+      for (const k of Object.keys(fileConfig)) delete (fileConfig as Record<string, unknown>)[k];
+    }
+    expect(init).toHaveBeenCalledWith({
+      key: 'bk_1',
+      apiHost: 'https://beats.test',
+      captureTitle: true,
+      allowedQueryParams: ['tab'],
+      beforeSend,
+      sanitizeUrl,
+      autoPageviews: false,
+    });
+    await new Promise((r) => setTimeout(r, 10));
+    expect(pageview).toHaveBeenCalledWith({ route: '/', route_name: undefined });
+    expect(register).toHaveBeenCalledWith({ route: '/', route_name: undefined });
+  });
+
+  it('routeProperties: false sends page views without route properties', async () => {
+    vi.spyOn(beats, 'init').mockImplementation(() => {});
+    const pageview = vi.spyOn(beats, 'pageview').mockImplementation(() => {});
+    await run({ key: 'bk_1', apiHost: 'https://beats.test', routeProperties: false });
+    await new Promise((r) => setTimeout(r, 10));
+    expect(pageview).toHaveBeenCalledWith(undefined);
   });
 
   it('forwards the beats:consent hook to the client', async () => {

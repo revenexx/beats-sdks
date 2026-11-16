@@ -1,13 +1,22 @@
 import { beats as shared, type BeatsClient, type BeatsOptions } from '@revenexx/beats-browser';
 import { hasInjectionContext, inject, nextTick, type App, type InjectionKey, type Plugin } from 'vue';
-import type { Router } from 'vue-router';
+import type { RouteLocationNormalized, Router } from 'vue-router';
 
 export type * from '@revenexx/beats-browser';
 
 /** Injection key of the client. */
 export const BEATS_KEY: InjectionKey<BeatsClient> = Symbol('beats');
 
-export interface BeatsVueOptions extends BeatsOptions {
+export interface TrackRouterOptions {
+  /**
+   * Add the matched route pattern (`route`, for example `/customers/:id`) and
+   * the route name (`route_name`) to the page view and, with `register`, to
+   * every later event of the page, including its `$pageleave`. Default true.
+   */
+  routeProperties?: boolean;
+}
+
+export interface BeatsVueOptions extends BeatsOptions, TrackRouterOptions {
   /** With a router, page views are sent from `router.afterEach` instead of the history API. */
   router?: Router;
   /** The client to use. Default: the shared `beats` instance of `@revenexx/beats-browser`. */
@@ -15,23 +24,43 @@ export interface BeatsVueOptions extends BeatsOptions {
 }
 
 /**
+ * The route pattern and name of a resolved route: `{ route: '/customers/:id',
+ * route_name: 'customer' }`. The pattern is the path of the deepest matched
+ * route record, so it holds no ids or tokens; Nuxt's `:id()` is written `:id`.
+ */
+export function routeProperties(to: Pick<RouteLocationNormalized, 'matched' | 'name'>): { route?: string; route_name?: string } {
+  const path = to.matched[to.matched.length - 1]?.path;
+  return {
+    route: path?.replace(/\(\)/g, ''),
+    route_name: to.name == null ? undefined : String(to.name),
+  };
+}
+
+/**
  * Sends `$pageview` after each completed navigation of a Vue Router. Changes
  * of the hash alone are not counted. The page view is sent on the next tick,
- * so that the new page has set its title.
+ * so that the new page has set its title. With `routeProperties` (default),
+ * the page view carries `route` and `route_name`, and they are registered as
+ * super properties after it, so later events of the page carry them too
+ * (the previous page's `$pageleave` keeps the previous route).
  */
-export function trackRouter(router: Router, client: BeatsClient = shared): () => void {
+export function trackRouter(router: Router, client: BeatsClient = shared, options: TrackRouterOptions = {}): () => void {
   let last: string | undefined;
-  const send = (fullPath: string) => {
-    const key = fullPath.split('#')[0];
+  const send = (to: RouteLocationNormalized) => {
+    const key = to.fullPath.split('#')[0];
     if (key === last) return;
     last = key;
-    void nextTick(() => client.pageview());
+    const props = options.routeProperties === false ? undefined : routeProperties(to);
+    void nextTick(() => {
+      client.pageview(props);
+      if (props) client.register(props);
+    });
   };
   const stop = router.afterEach((to, _from, failure) => {
-    if (!failure) send(to.fullPath);
+    if (!failure) send(to);
   });
   // the initial navigation may be complete before this runs
-  void router.isReady().then(() => send(router.currentRoute.value.fullPath));
+  void router.isReady().then(() => send(router.currentRoute.value));
   return stop;
 }
 
@@ -41,7 +70,7 @@ export function trackRouter(router: Router, client: BeatsClient = shared): () =>
  * rendering), provides it to `useBeats()` and as `$beats`.
  */
 export function createBeatsPlugin(options: BeatsVueOptions): Plugin & { client: BeatsClient } {
-  const { router, client = shared, ...init } = options;
+  const { router, client = shared, routeProperties, ...init } = options;
   return {
     client,
     install(app: App) {
@@ -49,7 +78,7 @@ export function createBeatsPlugin(options: BeatsVueOptions): Plugin & { client: 
       app.config.globalProperties.$beats = client;
       if (typeof window === 'undefined') return;
       client.init({ ...init, autoPageviews: router ? false : init.autoPageviews });
-      if (router && init.autoPageviews !== false) trackRouter(router, client);
+      if (router && init.autoPageviews !== false) trackRouter(router, client, { routeProperties });
     },
   };
 }

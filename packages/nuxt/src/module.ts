@@ -1,8 +1,9 @@
-import { addImports, addPlugin, createResolver, defineNuxtModule } from '@nuxt/kit';
+import { join } from 'node:path';
+import { addImports, addPlugin, addTemplate, createResolver, defineNuxtModule, findPath } from '@nuxt/kit';
 import type { BeatsOptions } from '@revenexx/beats-browser';
 import type { NuxtModule } from '@nuxt/schema';
 
-export interface ModuleOptions extends Partial<BeatsOptions> {
+export interface ModuleOptions extends Omit<Partial<BeatsOptions>, 'beforeSend' | 'sanitizeUrl'> {
   /** Also set `window.beats`, for consent managers and scripts outside Vue. Default false. */
   exposeGlobal?: boolean;
   /**
@@ -21,13 +22,28 @@ export interface ModuleOptions extends Partial<BeatsOptions> {
    * gross prices. `false` turns it off. Default true.
    */
   themeEvents?: boolean | { priceBasis?: 'net' | 'gross' };
+  /**
+   * Add the matched route pattern (`route`, for example `/customers/:id`) and
+   * the route name (`route_name`) to page views, page leave and every later
+   * event of the page. Default true.
+   */
+  routeProperties?: boolean;
+  /**
+   * File whose default export holds the options that are functions
+   * (`beforeSend`, `sanitizeUrl`), which runtime config cannot carry:
+   * `export default defineBeatsConfig({ ... })`. Default: `beats.config`
+   * (`.ts`, `.js`, ...) in the source directory (`app/` in Nuxt 4) or the
+   * root directory, if there is one.
+   */
+  config?: string;
 }
 
 /**
  * Nuxt module. Options go to `runtimeConfig.public.beats`, so they can be
  * set at runtime with `NUXT_PUBLIC_BEATS_KEY`, `NUXT_PUBLIC_BEATS_API_HOST`, ...
  * The client runs only in the browser (client-only plugin); a server plugin
- * passes a per-request ingest key from the SSR request to it.
+ * passes a per-request ingest key from the SSR request to it. Functions come
+ * from `beats.config.ts` through the build template `#build/beats.config.mjs`.
  */
 const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
   meta: {
@@ -41,14 +57,26 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     requestKeyHeader: 'x-revenexx-beats-key',
     themeEvents: true,
   },
-  setup(options, nuxt) {
+  async setup(options, nuxt) {
     const { resolve } = createResolver(import.meta.url);
+    const { config, ...rest } = options;
     const pub = nuxt.options.runtimeConfig.public as Record<string, unknown>;
     // values already in runtimeConfig (for example from .env) win over module options
-    pub.beats = { ...options, ...(pub.beats as object | undefined) };
+    pub.beats = { ...rest, ...(pub.beats as object | undefined) };
+    const file = await findPath(
+      config ? [config] : [join(nuxt.options.srcDir, 'beats.config'), join(nuxt.options.rootDir, 'beats.config')],
+    );
+    if (config && !file) console.warn(`[beats] config file ${config} not found`);
+    addTemplate({
+      filename: 'beats.config.mjs',
+      getContents: () => (file ? `export { default } from ${JSON.stringify(file)};\n` : 'export default {};\n'),
+    });
     addPlugin({ src: resolve('./runtime/plugin.server'), mode: 'server' });
     addPlugin({ src: resolve('./runtime/plugin.client'), mode: 'client' });
-    addImports({ name: 'useBeats', from: resolve('./runtime/composables') });
+    addImports([
+      { name: 'useBeats', from: resolve('./runtime/composables') },
+      { name: 'defineBeatsConfig', from: resolve('./runtime/config') },
+    ]);
   },
 });
 

@@ -63,15 +63,16 @@ async function storage(p: Page) {
 describe('minimal build (beats.js)', () => {
   it('sends a $pageview on load, cookieless, to POST /e as text/plain', async () => {
     servers.page('/landing', html({ title: 'Landing' }));
-    await page.goto(`${servers.siteUrl}/landing?utm_source=newsletter`, { referer: 'https://search.example/' });
+    await page.goto(`${servers.siteUrl}/landing?utm_source=newsletter&token=s3cret#top`, { referer: 'https://search.example/' });
     const [pv] = await waitFor(count('$pageview'));
+    // query string (except UTM and gclid), fragment and title are not sent by default
     expect(pv).toMatchObject({
       event: '$pageview',
       url: `${servers.siteUrl}/landing?utm_source=newsletter`,
       referrer: 'https://search.example/',
-      title: 'Landing',
       properties: {},
     });
+    expect(pv!.title).toBeUndefined();
     expect(pv!.distinct_id).toBeUndefined();
     expect(pv!.session_id).toBeUndefined();
     expect(pv!.screen_width).toBeGreaterThan(0);
@@ -81,6 +82,13 @@ describe('minimal build (beats.js)', () => {
     expect(servers.recorded[0]!.consent).toBe(false);
     expect(await storage(page)).toEqual({ local: {}, session: {}, cookie: '' });
     expect(await context.cookies()).toEqual([]);
+  });
+
+  it('takes captureTitle and allowedQueryParams from data attributes', async () => {
+    servers.page('/list', html({ title: 'Orders', attrs: 'data-capture-title data-allowed-query-params="tab,sort"' }));
+    await page.goto(`${servers.siteUrl}/list?tab=open&sort=date&q=jane&utm_source=x`);
+    const [pv] = await waitFor(count('$pageview'));
+    expect(pv).toMatchObject({ url: `${servers.siteUrl}/list?tab=open&sort=date`, title: 'Orders' });
   });
 
   it('tracks SPA navigation with pushState and the back button', async () => {
