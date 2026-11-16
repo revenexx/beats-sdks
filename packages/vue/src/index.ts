@@ -44,18 +44,27 @@ export function routeProperties(to: Pick<RouteLocationNormalized, 'matched' | 'n
 
 /**
  * Sends `$pageview` after each completed navigation of a Vue Router. Changes
- * of the hash alone are not counted. The page view is sent once `ready`
- * resolves (default: the next tick), so that the new page has set its title. With `routeProperties` (default),
+ * of the hash alone are not counted, and neither is a `router.replace` that
+ * keeps the path (a changed query or hash on the same page, such as the
+ * replace a Nuxt page makes while it hydrates): the initial load counts once.
+ * A push that changes only the query still counts. The page view is sent once
+ * `ready` resolves (default: the next tick), so that the new page has set its title. With `routeProperties` (default),
  * the page view carries `route` and `route_name`, and they are registered as
  * super properties after it, so later events of the page carry them too
  * (the previous page's `$pageleave` keeps the previous route).
  */
 export function trackRouter(router: Router, client: BeatsClient = shared, options: TrackRouterOptions = {}): () => void {
-  let last: string | undefined;
-  const send = (to: RouteLocationNormalized) => {
+  let lastKey: string | undefined;
+  let lastPath: string | undefined;
+  // web and hash history mark the entry a replace wrote (memory history does not)
+  const replaced = () => (router.options.history.state as { replaced?: unknown } | null | undefined)?.replaced === true;
+  const send = (to: RouteLocationNormalized, replace: boolean) => {
     const key = to.fullPath.split('#')[0];
-    if (key === last) return;
-    last = key;
+    if (key === lastKey) return;
+    const samePage = to.path === lastPath;
+    lastKey = key;
+    lastPath = to.path;
+    if (samePage && replace) return;
     const props = options.routeProperties === false ? undefined : routeProperties(to);
     void (options.ready ?? nextTick)().then(() => {
       client.pageview(props);
@@ -63,10 +72,10 @@ export function trackRouter(router: Router, client: BeatsClient = shared, option
     });
   };
   const stop = router.afterEach((to, _from, failure) => {
-    if (!failure) send(to);
+    if (!failure) send(to, replaced());
   });
-  // the initial navigation may be complete before this runs
-  void router.isReady().then(() => send(router.currentRoute.value));
+  // the initial navigation may be complete before this runs; if it was counted, this is the same page
+  void router.isReady().then(() => send(router.currentRoute.value, true));
   return stop;
 }
 
