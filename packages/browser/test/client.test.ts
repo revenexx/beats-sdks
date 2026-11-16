@@ -39,11 +39,10 @@ describe('envelope', () => {
     expect(e).toMatchObject({
       event: 'signup',
       url: 'http://localhost:3000/start',
+      title: 'Start',
       language: navigator.language,
       properties: { plan: 'pro' },
     });
-    // no title by default (captureTitle)
-    expect(e).not.toHaveProperty('title');
     expect(e!.event_id).toMatch(UUID);
     expect(new Date(e!.timestamp!).getTime()).toBeGreaterThan(Date.now() - 5000);
     expect(typeof e!.screen_width).toBe('number');
@@ -164,14 +163,14 @@ describe('URLs, titles and beforeSend', () => {
     expect(r.events()[0]!.url).toBe('http://localhost:3000/app#/orders/7');
   });
 
-  it('sends the title only with captureTitle', async () => {
+  it('sends the title unless captureTitle is false', async () => {
     const r = recordRequests();
     document.title = 'Jane Doe – Customer';
     makeClient().client.track('a');
-    makeClient({ captureTitle: true }).client.track('b');
+    makeClient({ captureTitle: false }).client.track('b');
     await settle();
-    expect(r.events()[0]).not.toHaveProperty('title');
-    expect(r.events()[1]!.title).toBe('Jane Doe – Customer');
+    expect(r.events()[0]!.title).toBe('Jane Doe – Customer');
+    expect(r.events()[1]).not.toHaveProperty('title');
   });
 
   it('applies sanitizeUrl to the URL and the referrer of every event, page leave included', async () => {

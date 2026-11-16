@@ -52,7 +52,7 @@ export interface BeatsOptions {
    * Script tag: comma-separated.
    */
   allowedQueryParams?: string[];
-  /** Send `document.title` with each event. Default false: titles often name a customer, an order or a search. */
+  /** Send `document.title` with each event. Default true; `false` for apps whose titles name a customer, an order or a search. */
   captureTitle?: boolean;
   /**
    * Rewrites the URL and the referrer of each event after the query string

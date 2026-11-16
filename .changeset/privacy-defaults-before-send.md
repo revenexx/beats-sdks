@@ -4,9 +4,9 @@
 "@revenexx/beats-nuxt": minor
 ---
 
-Privacy-safe URLs and titles, `beforeSend`, `sanitizeUrl` and route properties.
+Privacy-safe URLs, `beforeSend`, `sanitizeUrl` and route properties.
 
-**Behaviour change:** URLs and referrers are now sent without query string and fragment, except the parameters in `allowedQueryParams` (default `DEFAULT_QUERY_PARAMS`: `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, `gclid`; with `hashRouting` the route in the fragment is kept), and `document.title` is no longer sent. `captureQueryString: true` and `captureTitle: true` restore the previous behaviour. A change of the query string still counts as a page view.
+**Behaviour change:** URLs and referrers are now sent without query string and fragment, except the parameters in `allowedQueryParams` (default `DEFAULT_QUERY_PARAMS`: `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, `gclid`; with `hashRouting` the route in the fragment is kept). `captureQueryString: true` restores the previous behaviour. `document.title` is still sent; the new `captureTitle: false` leaves it out. A change of the query string still counts as a page view.
 
 - `beforeSend(event)` runs on every event (page views, page leave, custom, people and commerce events) before it is queued; it returns the event, changed or not, or `null` to drop it.
 - `sanitizeUrl(url)` rewrites the URL and the referrer of every event, for example to replace tokens in paths.

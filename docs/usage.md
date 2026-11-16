@@ -90,7 +90,7 @@ custom client.
 | `sessionTimeout` | `30` | Minutes without events after which a new session starts (identified mode). |
 | `captureQueryString` | `false` | Send URLs and referrers with their full query string and fragment. By default both are removed except the `allowedQueryParams` (see [URLs, titles and `beforeSend`](#urls-titles-and-beforesend)). |
 | `allowedQueryParams` | UTM parameters and `gclid` | Query parameters kept when `captureQueryString` is off; a list replaces the default (`DEFAULT_QUERY_PARAMS`). Script tag: comma-separated. |
-| `captureTitle` | `false` | Send `document.title`. |
+| `captureTitle` | `true` | Send `document.title`; `false` for apps whose titles hold personal data. |
 | `sanitizeUrl` | — | `(url) => url`: rewrites the URL and referrer of each event, for example to replace tokens in paths. Not as a `data-*` attribute. |
 | `beforeSend` | — | `(event) => event \| null`: changes or drops each event before it is queued. Not as a `data-*` attribute. |
 | `currency` | — | Currency of commerce events that name none. |
@@ -131,7 +131,8 @@ therefore sends, by default:
   `utm_term`, `utm_content` and `gclid`, which the server needs for
   campaigns and channels. With `hashRouting`, the fragment is the route
   and its path is kept (not a query string inside it);
-- **no title** (`captureTitle: false`).
+- the title as before; `captureTitle: false` leaves it out, for apps
+  whose titles name a customer or an order (or rewrite it in `beforeSend`).
 
 A change of the query string still counts as a new page view; only the
 sent URL is shorter. An app UI can keep its own harmless parameters; the
@@ -152,8 +153,8 @@ beats.init({
 ```
 
 Never put a parameter that can carry a search term, a name, an e-mail
-address or a token on the list. `captureQueryString: true` and
-`captureTitle: true` restore the full URL and the title.
+address or a token on the list. `captureQueryString: true`
+restores the full URL.
 
 `sanitizeUrl` gets each URL and referrer after the query string has been
 handled. `beforeSend` gets every event after that: page views, page leave,
@@ -524,8 +525,8 @@ through their `fetch`; there, call `shutdown()` yourself.
 - The client does not read form fields, text or other page content.
   Events contain the URL and the referrer without query string and
   fragment (except the UTM parameters, `gclid` and what
-  `allowedQueryParams` adds), the viewport width and the browser
-  language, plus what you send; the title only with `captureTitle`.
+  `allowedQueryParams` adds), the title (unless `captureTitle: false`),
+  the viewport width and the browser language, plus what you send.
   Paths can still hold personal data (tokens, ids): replace it with
   `sanitizeUrl`, and anything else with `beforeSend`.
 - Properties are sent as given; do not put personal data into event or
