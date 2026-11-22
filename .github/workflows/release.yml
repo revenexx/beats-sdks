@@ -53,7 +53,7 @@ jobs:
       # bundled with Node 22). pnpm publish shells out to this npm for auth.
       - run: npm install -g npm@latest
       - run: pnpm install --frozen-lockfile
-      - uses: changesets/action@v1
+      - uses: changesets/action@v2
         with:
           # `pnpm run version` (changeset version), not pnpm's built-in version.
           version: pnpm run version
