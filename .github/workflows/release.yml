@@ -53,10 +53,13 @@ jobs:
       # bundled with Node 22). pnpm publish shells out to this npm for auth.
       - run: npm install -g npm@latest
       - run: pnpm install --frozen-lockfile
-      - uses: changesets/action@v1
+      # v2 renamed the inputs (version-script, publish-script) and takes the
+      # token only through github-token, not from the GITHUB_TOKEN env.
+      - uses: changesets/action@v2
         with:
           # `pnpm run version` (changeset version), not pnpm's built-in version.
-          version: pnpm run version
-          publish: pnpm run release
+          version-script: pnpm run version
+          publish-script: pnpm run release
+          github-token: ${{ steps.app-token.outputs.token }}
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
