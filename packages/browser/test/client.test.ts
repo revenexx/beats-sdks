@@ -588,7 +588,7 @@ describe('pageviews and page leave', () => {
     const { client } = makeClient({ batching: { size: 50, interval: 60_000 } });
     client.pageview();
     vi.setSystemTime(Date.now() + 4000);
-    window.scrollY = 1000;
+    Object.defineProperty(window, 'scrollY', { value: 1000, configurable: true });
     window.dispatchEvent(new Event('scroll'));
     setVisibility('hidden');
     vi.setSystemTime(Date.now() + 60_000); // hidden time does not count
@@ -601,7 +601,7 @@ describe('pageviews and page leave', () => {
     const [first, second] = r.events().filter((e) => e.event === '$pageleave');
     expect(first!.properties).toEqual({ $duration_ms: 4000, $scroll_depth: 75 });
     expect(second!.properties).toEqual({ $duration_ms: 1000, $scroll_depth: 75 });
-    window.scrollY = 0;
+    Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
   });
 
   it('sends $pageleave for the previous page on SPA navigation', async () => {
